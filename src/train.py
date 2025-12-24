@@ -113,7 +113,7 @@ def train_main_model(X_train, X_test, y_train, y_test):
         f1 = f1_score(y_test, preds, average="macro")
 
         mlflow.log_param("model", "RandomForestClassifier")
-        mlflow.log_param("model_type", "XGBoost")
+        mlflow.log_param("model_type", "RandomForest")
         mlflow.log_param("checkpointing", "MLflow Registry")
         mlflow.log_param("fallback_enabled", True)
         mlflow.log_param("iterations", 300)
@@ -128,7 +128,7 @@ def train_main_model(X_train, X_test, y_train, y_test):
 
         mlflow.sklearn.log_model(
             model,
-            artifact_path="model_sklearn",
+            name="model_sklearn",
             registered_model_name=MODEL_NAME
         )
 

@@ -6,6 +6,7 @@ from sklearn.feature_extraction import FeatureHasher
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
 from sklearn.impute import SimpleImputer
+from pathlib import Path
 import joblib
 import re
 import os
@@ -188,6 +189,24 @@ def preprocess_and_split():
     df = clean_raw_columns(df)
     df = feature_cross(df)
     df = create_target(df)
+
+    reference_dir = Path("data/reference")
+    reference_dir.mkdir(parents=True, exist_ok=True)
+
+    df_reference = df[
+        [
+            "district",
+            "address",
+            "HeatingType",
+            "FloorLocation",
+            "price_category"
+        ]
+    ].copy()
+
+    df_reference.to_parquet(
+        reference_dir / "reference.parquet",
+        index=False
+    )
 
     X = df[NUMERIC_FEATURES + LOW_CARD_CAT + HIGH_CARD_CAT]
     y = df["price_category"]

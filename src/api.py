@@ -1,9 +1,11 @@
+from math import log
 from fastapi import FastAPI
 from pydantic import BaseModel
 import joblib
 import pandas as pd
 from scipy.sparse import hstack
 from src.model_loader import load_model
+from src.production_logger import log_input, log_prediction
 
 MODEL_PATH = "models/model.pkl"
 PREPROCESSOR_PATH = "data/processed/preprocessor.pkl"
@@ -89,7 +91,9 @@ def health():
 def predict(input_data: HousingInput):
     data = input_data.model_dump()
     X = preprocess_input(data)
+    log_input(data)
     prediction = model.predict(X)[0]
+    log_prediction(int(prediction))
 
     print(f"Prediction: {prediction}")
 
