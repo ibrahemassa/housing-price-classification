@@ -97,7 +97,6 @@ def train_main_model(X_train, X_test, y_train, y_test):
         #     n_jobs=-1
         # )
 
-        #Use randomForest
         model = RandomForestClassifier(
             n_estimators=100,
             random_state=RANDOM_STATE,
