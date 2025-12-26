@@ -1,0 +1,23 @@
+artifact_path: "/home/ibrahem/os/Users/oioil/\u0633\u0637\u062D \u0627\u0644\u0645\
+  \u0643\u062A\u0628/Uni/MLOps/project/mlruns/1/models/m-30bf466f51974a0c82779f4f5af07800/artifacts"
+flavors:
+  python_function:
+    env:
+      conda: conda.yaml
+      virtualenv: python_env.yaml
+    loader_module: mlflow.sklearn
+    model_path: model.pkl
+    predict_fn: predict
+    python_version: 3.13.11
+  sklearn:
+    code: null
+    pickled_model: model.pkl
+    serialization_format: cloudpickle
+    sklearn_version: 1.8.0
+mlflow_version: 3.8.0
+model_id: m-30bf466f51974a0c82779f4f5af07800
+model_size_bytes: 123012018
+model_uuid: m-30bf466f51974a0c82779f4f5af07800
+prompts: null
+run_id: 497f504a98234b24a2e123f7e1a2d9bf
+utc_time_created: '2025-12-26 09:12:54.877255'

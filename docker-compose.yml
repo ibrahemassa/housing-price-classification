@@ -1,0 +1,49 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      MLFLOW_TRACKING_URI: http://mlflow:5000
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./mlruns:/app/mlruns
+    depends_on:
+      - mlflow
+
+  prefect-server:
+    image: prefecthq/prefect:2-latest
+    command: prefect server start --host 0.0.0.0
+    ports:
+      - "4200:4200"
+
+  prefect:
+    build:
+      context: .
+      dockerfile: Dockerfile.train
+    environment:
+      PREFECT_API_URL: http://prefect-server:4200/api
+    volumes:
+      - ./data:/app/data
+      - ./mlruns:/app/mlruns
+    depends_on:
+      - prefect-server
+
+
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v2.12.1
+    ports:
+      - "5000:5000"
+    command: >
+      mlflow server
+      --host 0.0.0.0
+      --port 5000
+      --backend-store-uri sqlite:///mlflow.db
+      --default-artifact-root /mlruns
+    volumes:
+      - ./mlruns:/mlruns
+      - ./mlflow.db:/mlflow.db

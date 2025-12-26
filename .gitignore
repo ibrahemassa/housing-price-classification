@@ -63,3 +63,7 @@ env/
 *.ckpt
 
 *.db
+
+htmlcov/
+.coverage
+tests/TESTING_REPORT.md

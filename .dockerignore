@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.env
+.venv
+.mlops_project
+.git
+.gitignore
+mlruns/
+data/
+models/

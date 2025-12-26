@@ -1,7 +1,11 @@
 pandas
 numpy
 scikit-learn
-xgboost
+# xgboost
 mlflow
 fastapi
 uvicorn
+prefect
+pytest
+pytest-mock
+pytest-cov
