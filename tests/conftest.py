@@ -4,6 +4,7 @@ import tempfile
 import numpy as np
 import pandas as pd
 import pytest
+from unittest.mock import MagicMock
 from sklearn.compose import ColumnTransformer
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.feature_extraction import FeatureHasher
@@ -63,7 +64,6 @@ def sample_housing_input():
 def mock_model():
     """Mock sklearn model."""
     model = RandomForestClassifier(n_estimators=10, random_state=42)
-    # Fit with dummy data
     X = np.random.rand(10, 5)
     y = np.random.randint(0, 3, 10)
     model.fit(X, y)
@@ -131,6 +131,15 @@ def mock_hasher():
     hasher = FeatureHasher(n_features=2**14, input_type="string")
     return hasher
 
+@pytest.fixture(autouse=True)
+def mock_mlflow(monkeypatch):
+    mock_model = MagicMock()
+    mock_model.predict.return_value = [100000]
+
+    monkeypatch.setattr(
+        "src.utils.model_loader.mlflow.sklearn.load_model",
+        lambda _: mock_model
+    )
 
 @pytest.fixture
 def sample_reference_data():

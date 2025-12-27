@@ -23,4 +23,5 @@ exclude = ["data", "models", "mlruns"]
 python_version = "3.13"
 ignore_missing_imports = true
 warn_unused_configs = true
+explicit_package_bases = true
 
