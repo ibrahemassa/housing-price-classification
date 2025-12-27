@@ -26,11 +26,18 @@ ALL_FEATURES = NUMERIC_FEATURES + LOW_CARD_CAT + HIGH_CARD_CAT
 
 CATEGORIES = {0: "low", 1: "medium", 2: "high"}
 
-try:
-    model = load_model("production")
-except Exception:
-    print("Falling back to staging model")
-    model = load_model("staging")
+model = None
+
+def get_model():
+    global model
+    if model is None:
+        try:
+            model = load_model("production")
+        except Exception:
+            print("Falling back to staging model")
+            model = load_model("staging")
+
+    return model
 
 preprocessor = joblib.load(PREPROCESSOR_PATH)
 hasher = joblib.load(HASHER_PATH)
@@ -76,6 +83,7 @@ def health():
 
 @app.post("/predict")
 def predict(input_data: HousingInput):
+    model = get_model()
     data = input_data.model_dump()
     X = preprocess_input(data)
     log_input(data)
