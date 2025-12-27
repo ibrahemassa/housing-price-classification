@@ -1,19 +1,16 @@
+import os
+
 import joblib
 import mlflow
 import mlflow.sklearn
-import mlflow.sklearn
 import mlflow.xgboost
 import numpy as np
-import os
 
 # from xgboost import XGBClassifier
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
-from sklearn.utils.class_weight import compute_sample_weight
 from sklearn.metrics import accuracy_score, f1_score
-from sklearn.utils.class_weight import compute_class_weight
-
-
+from sklearn.utils.class_weight import compute_class_weight, compute_sample_weight
 
 PROCESSED_DIR = "./data/processed"
 MODEL_DIR = "models"
@@ -28,6 +25,7 @@ RANDOM_STATE = 42
 mlflow.set_tracking_uri("sqlite:///mlflow.db")
 mlflow.set_experiment("housing-price-classification")
 
+
 def load_data():
     X_train, y_train = joblib.load(TRAIN_PATH)
     X_test, y_test = joblib.load(TEST_PATH)
@@ -36,28 +34,16 @@ def load_data():
 
 def get_class_weights(y):
     classes = np.unique(y)
-    weights = compute_class_weight(
-        class_weight="balanced",
-        classes=classes,
-        y=y
-    )
+    weights = compute_class_weight(class_weight="balanced", classes=classes, y=y)
 
-    return dict(zip(classes, weights))
+    return dict(zip(classes, weights, strict=False))
 
 
 def train_baseline(X_train, X_test, y_train, y_test):
     with mlflow.start_run(run_name="baseline_logistic_regression"):
-        model = LogisticRegression(
-            max_iter=1000,
-            class_weight="balanced",
-            n_jobs=-1
-        )
+        model = LogisticRegression(max_iter=1000, class_weight="balanced", n_jobs=-1)
 
-        sample_weights = compute_sample_weight(
-            class_weight="balanced",
-            y=y_train
-)
-
+        sample_weights = compute_sample_weight(class_weight="balanced", y=y_train)
 
         model.fit(X_train, y_train, sample_weight=sample_weights)
         preds = model.predict(X_test)
@@ -77,10 +63,7 @@ def train_baseline(X_train, X_test, y_train, y_test):
 def train_main_model(X_train, X_test, y_train, y_test):
     class_weights = get_class_weights(y_train)
 
-    sample_weights = compute_sample_weight(
-        class_weight="balanced",
-        y=y_train
-    )
+    sample_weights = compute_sample_weight(class_weight="balanced", y=y_train)
 
     with mlflow.start_run(run_name="main_model_random_forest"):
         # model = XGBClassifier(
@@ -100,7 +83,7 @@ def train_main_model(X_train, X_test, y_train, y_test):
             n_estimators=100,
             random_state=RANDOM_STATE,
             class_weight=class_weights,
-            n_jobs=-1
+            n_jobs=-1,
         )
 
         # model.fit(X_train, y_train, sample_weight=sample_weights, eval_set=[(X_test, y_test)], verbose=False)
@@ -126,14 +109,12 @@ def train_main_model(X_train, X_test, y_train, y_test):
         joblib.dump(model, model_path)
 
         mlflow.sklearn.log_model(
-            model,
-            name="model_sklearn",
-            registered_model_name=MODEL_NAME
+            model, name="model_sklearn", registered_model_name=MODEL_NAME
         )
 
         # mlflow.xgboost.log_model(
         #     model,
-        #     name="model",   
+        #     name="model",
         #     registered_model_name=MODEL_NAME
         # )
 

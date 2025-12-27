@@ -3,6 +3,7 @@ import mlflow.sklearn
 
 MODEL_NAME = "HousingPriceClassifier"
 
+
 def load_model(alias="production"):
     model_uri = f"models:/{MODEL_NAME}@{alias}"
 

@@ -1,9 +1,9 @@
-from math import log
-from fastapi import FastAPI
-from pydantic import BaseModel
 import joblib
 import pandas as pd
+from fastapi import FastAPI
+from pydantic import BaseModel
 from scipy.sparse import hstack
+
 from src.utils.model_loader import load_model
 from src.utils.production_logger import log_input, log_prediction
 
@@ -11,33 +11,20 @@ MODEL_PATH = "models/model.pkl"
 PREPROCESSOR_PATH = "data/processed/preprocessor.pkl"
 HASHER_PATH = "data/processed/hasher.pkl"
 
-HIGH_CARD_CAT = [
-    "address",
-    "AdCreationDate",
-    "Subscription"
-]
+HIGH_CARD_CAT = ["address", "AdCreationDate", "Subscription"]
 
-LOW_CARD_CAT = [
-    "district",
-    "HeatingType",
-    "StructureType",
-    "FloorLocation"
-]
+LOW_CARD_CAT = ["district", "HeatingType", "StructureType", "FloorLocation"]
 
 NUMERIC_FEATURES = [
     "GrossSquareMeters",
     "NetSquareMeters",
     "BuildingAge",
-    "NumberOfRooms"
+    "NumberOfRooms",
 ]
 
 ALL_FEATURES = NUMERIC_FEATURES + LOW_CARD_CAT + HIGH_CARD_CAT
 
-CATEGORIES = {
-    0: "low",
-    1: "medium",
-    2: "high"
-}
+CATEGORIES = {0: "low", 1: "medium", 2: "high"}
 
 try:
     model = load_model("production")
@@ -97,7 +84,4 @@ def predict(input_data: HousingInput):
 
     # print(f"Prediction: {prediction}")
 
-    return {
-        "price_category": CATEGORIES[int(prediction)]
-    }
-
+    return {"price_category": CATEGORIES[int(prediction)]}

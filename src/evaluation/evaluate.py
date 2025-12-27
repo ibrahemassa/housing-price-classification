@@ -1,16 +1,14 @@
-import joblib
 import os
-import numpy as np
-import matplotlib.pyplot as plt
 
+import joblib
+import matplotlib.pyplot as plt
 from sklearn.metrics import (
+    ConfusionMatrixDisplay,
     accuracy_score,
-    f1_score,
     classification_report,
     confusion_matrix,
-    ConfusionMatrixDisplay
+    f1_score,
 )
-
 
 PROCESSED_DIR = "data/processed"
 MODEL_DIR = "models"

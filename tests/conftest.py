@@ -1,17 +1,15 @@
-import pytest
-import pandas as pd
-import numpy as np
-from pathlib import Path
-import tempfile
 import shutil
-from unittest.mock import MagicMock
-import joblib
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.feature_extraction import FeatureHasher
+import tempfile
+
+import numpy as np
+import pandas as pd
+import pytest
 from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.feature_extraction import FeatureHasher
 from sklearn.impute import SimpleImputer
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 
 @pytest.fixture
@@ -25,20 +23,22 @@ def temp_dir():
 @pytest.fixture
 def sample_housing_data():
     """Sample housing data for testing."""
-    return pd.DataFrame({
-        "GrossSquareMeters": [100.0, 150.0, 200.0],
-        "NetSquareMeters": [80.0, 120.0, 160.0],
-        "BuildingAge": [5, 10, 15],
-        "NumberOfRooms": [2.0, 3.0, 4.0],
-        "district": ["A", "B", "C"],
-        "HeatingType": ["Type1", "Type2", "Type1"],
-        "StructureType": ["Struct1", "Struct2", "Struct1"],
-        "FloorLocation": ["Floor1", "Floor2", "Floor1"],
-        "address": ["Address1", "Address2", "Address3"],
-        "AdCreationDate": ["2024-01", "2024-02", "2024-03"],
-        "Subscription": ["Sub1", "Sub2", "Sub1"],
-        "price": ["100,000 TL", "200,000 TL", "300,000 TL"]
-    })
+    return pd.DataFrame(
+        {
+            "GrossSquareMeters": [100.0, 150.0, 200.0],
+            "NetSquareMeters": [80.0, 120.0, 160.0],
+            "BuildingAge": [5, 10, 15],
+            "NumberOfRooms": [2.0, 3.0, 4.0],
+            "district": ["A", "B", "C"],
+            "HeatingType": ["Type1", "Type2", "Type1"],
+            "StructureType": ["Struct1", "Struct2", "Struct1"],
+            "FloorLocation": ["Floor1", "Floor2", "Floor1"],
+            "address": ["Address1", "Address2", "Address3"],
+            "AdCreationDate": ["2024-01", "2024-02", "2024-03"],
+            "Subscription": ["Sub1", "Sub2", "Sub1"],
+            "price": ["100,000 TL", "200,000 TL", "300,000 TL"],
+        }
+    )
 
 
 @pytest.fixture
@@ -55,7 +55,7 @@ def sample_housing_input():
         "FloorLocation": "Floor1",
         "address": "Address1",
         "AdCreationDate": "2024-01",
-        "Subscription": "Sub1"
+        "Subscription": "Sub1",
     }
 
 
@@ -73,35 +73,54 @@ def mock_model():
 @pytest.fixture
 def mock_preprocessor():
     """Mock preprocessor transformer."""
-    numeric_pipeline = Pipeline(steps=[
-        ("imputer", SimpleImputer(strategy="median")),
-        ("scaler", StandardScaler())
-    ])
-    
-    low_card_cat_pipeline = Pipeline(steps=[
-        ("imputer", SimpleImputer(strategy="most_frequent")),
-        ("onehot", OneHotEncoder(handle_unknown="ignore", sparse_output=False))
-    ])
-    
+    numeric_pipeline = Pipeline(
+        steps=[
+            ("imputer", SimpleImputer(strategy="median")),
+            ("scaler", StandardScaler()),
+        ]
+    )
+
+    low_card_cat_pipeline = Pipeline(
+        steps=[
+            ("imputer", SimpleImputer(strategy="most_frequent")),
+            ("onehot", OneHotEncoder(handle_unknown="ignore", sparse_output=False)),
+        ]
+    )
+
     preprocessor = ColumnTransformer(
         transformers=[
-            ("num", numeric_pipeline, ["GrossSquareMeters", "NetSquareMeters", "BuildingAge", "NumberOfRooms"]),
-            ("low_cat", low_card_cat_pipeline, ["district", "HeatingType", "StructureType", "FloorLocation"]),
+            (
+                "num",
+                numeric_pipeline,
+                [
+                    "GrossSquareMeters",
+                    "NetSquareMeters",
+                    "BuildingAge",
+                    "NumberOfRooms",
+                ],
+            ),
+            (
+                "low_cat",
+                low_card_cat_pipeline,
+                ["district", "HeatingType", "StructureType", "FloorLocation"],
+            ),
         ],
-        remainder="drop"
+        remainder="drop",
     )
-    
+
     # Fit with dummy data
-    X = pd.DataFrame({
-        "GrossSquareMeters": [100.0, 150.0, 200.0],
-        "NetSquareMeters": [80.0, 120.0, 160.0],
-        "BuildingAge": [5, 10, 15],
-        "NumberOfRooms": [2.0, 3.0, 4.0],
-        "district": ["A", "B", "C"],
-        "HeatingType": ["Type1", "Type2", "Type1"],
-        "StructureType": ["Struct1", "Struct2", "Struct1"],
-        "FloorLocation": ["Floor1", "Floor2", "Floor1"]
-    })
+    X = pd.DataFrame(
+        {
+            "GrossSquareMeters": [100.0, 150.0, 200.0],
+            "NetSquareMeters": [80.0, 120.0, 160.0],
+            "BuildingAge": [5, 10, 15],
+            "NumberOfRooms": [2.0, 3.0, 4.0],
+            "district": ["A", "B", "C"],
+            "HeatingType": ["Type1", "Type2", "Type1"],
+            "StructureType": ["Struct1", "Struct2", "Struct1"],
+            "FloorLocation": ["Floor1", "Floor2", "Floor1"],
+        }
+    )
     preprocessor.fit(X)
     return preprocessor
 
@@ -116,31 +135,32 @@ def mock_hasher():
 @pytest.fixture
 def sample_reference_data():
     """Sample reference data for monitoring."""
-    return pd.DataFrame({
-        "district": ["A", "B", "C", "A", "B"] * 20,
-        "address": [f"Address{i}" for i in range(100)],
-        "HeatingType": ["Type1", "Type2", "Type1", "Type2", "Type1"] * 20,
-        "FloorLocation": ["Floor1", "Floor2", "Floor1", "Floor2", "Floor1"] * 20,
-        "price_category": [0, 1, 2, 0, 1] * 20,
-        "target": [0, 1, 2, 0, 1] * 20
-    })
+    return pd.DataFrame(
+        {
+            "district": ["A", "B", "C", "A", "B"] * 20,
+            "address": [f"Address{i}" for i in range(100)],
+            "HeatingType": ["Type1", "Type2", "Type1", "Type2", "Type1"] * 20,
+            "FloorLocation": ["Floor1", "Floor2", "Floor1", "Floor2", "Floor1"] * 20,
+            "price_category": [0, 1, 2, 0, 1] * 20,
+            "target": [0, 1, 2, 0, 1] * 20,
+        }
+    )
 
 
 @pytest.fixture
 def sample_production_data():
     """Sample production data for monitoring."""
-    return pd.DataFrame({
-        "district": ["A", "B", "C", "A", "B"] * 20,
-        "address": [f"Address{i}" for i in range(100)],
-        "HeatingType": ["Type1", "Type2", "Type1", "Type2", "Type1"] * 20,
-        "FloorLocation": ["Floor1", "Floor2", "Floor1", "Floor2", "Floor1"] * 20
-    })
+    return pd.DataFrame(
+        {
+            "district": ["A", "B", "C", "A", "B"] * 20,
+            "address": [f"Address{i}" for i in range(100)],
+            "HeatingType": ["Type1", "Type2", "Type1", "Type2", "Type1"] * 20,
+            "FloorLocation": ["Floor1", "Floor2", "Floor1", "Floor2", "Floor1"] * 20,
+        }
+    )
 
 
 @pytest.fixture
 def sample_predictions():
     """Sample predictions for monitoring."""
-    return pd.DataFrame({
-        "prediction": [0, 1, 2, 0, 1] * 20
-    })
-
+    return pd.DataFrame({"prediction": [0, 1, 2, 0, 1] * 20})

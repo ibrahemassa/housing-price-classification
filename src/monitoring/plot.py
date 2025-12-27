@@ -1,7 +1,8 @@
+from datetime import datetime
 from pathlib import Path
+
 import matplotlib.pyplot as plt
 import pandas as pd
-from datetime import datetime
 
 PLOT_DIR = Path("data/monitoring/plots")
 PLOT_DIR.mkdir(parents=True, exist_ok=True)
@@ -16,9 +17,7 @@ def plot_categorical_distribution(ref, prod, column):
     prod_counts = prod[column].value_counts(normalize=True).head(10)
 
     df = pd.concat(
-        [ref_counts, prod_counts],
-        axis=1,
-        keys=["reference", "production"]
+        [ref_counts, prod_counts], axis=1, keys=["reference", "production"]
     ).fillna(0)
 
     ax = df.plot(kind="bar", figsize=(10, 5))
@@ -38,9 +37,7 @@ def plot_prediction_distribution(ref_preds, prod_preds):
     prod_counts = prod_preds.value_counts(normalize=True).sort_index()
 
     df = pd.concat(
-        [ref_counts, prod_counts],
-        axis=1,
-        keys=["reference", "production"]
+        [ref_counts, prod_counts], axis=1, keys=["reference", "production"]
     ).fillna(0)
 
     ax = df.plot(kind="bar", figsize=(6, 4))
@@ -66,11 +63,7 @@ def plot_cardinality_growth(ref, prod, column):
         }
     )
 
-    ax = df.set_index("dataset").plot(
-        kind="bar",
-        legend=False,
-        figsize=(5, 4)
-    )
+    ax = df.set_index("dataset").plot(kind="bar", legend=False, figsize=(5, 4))
     ax.set_title(f"Cardinality Growth — {column}")
     ax.set_ylabel("Unique Values")
     plt.tight_layout()

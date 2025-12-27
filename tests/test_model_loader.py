@@ -1,5 +1,7 @@
+from unittest.mock import MagicMock, patch
+
 import pytest
-from unittest.mock import patch, MagicMock
+
 from src.utils.model_loader import load_model
 
 
@@ -11,10 +13,12 @@ class TestModelLoader:
         """Test loading model with production alias."""
         mock_model = MagicMock()
         mock_load_model.return_value = mock_model
-        
+
         result = load_model("production")
-        
-        mock_load_model.assert_called_once_with("models:/HousingPriceClassifier@production")
+
+        mock_load_model.assert_called_once_with(
+            "models:/HousingPriceClassifier@production"
+        )
         assert result == mock_model
 
     @patch("src.utils.model_loader.mlflow.sklearn.load_model")
@@ -22,10 +26,12 @@ class TestModelLoader:
         """Test loading model with staging alias."""
         mock_model = MagicMock()
         mock_load_model.return_value = mock_model
-        
+
         result = load_model("staging")
-        
-        mock_load_model.assert_called_once_with("models:/HousingPriceClassifier@staging")
+
+        mock_load_model.assert_called_once_with(
+            "models:/HousingPriceClassifier@staging"
+        )
         assert result == mock_model
 
     @patch("src.utils.model_loader.mlflow.sklearn.load_model")
@@ -33,10 +39,12 @@ class TestModelLoader:
         """Test loading model with default alias (production)."""
         mock_model = MagicMock()
         mock_load_model.return_value = mock_model
-        
+
         result = load_model()
-        
-        mock_load_model.assert_called_once_with("models:/HousingPriceClassifier@production")
+
+        mock_load_model.assert_called_once_with(
+            "models:/HousingPriceClassifier@production"
+        )
         assert result == mock_model
 
     @patch("src.utils.model_loader.mlflow.sklearn.load_model")
@@ -44,17 +52,18 @@ class TestModelLoader:
         """Test loading model with custom alias."""
         mock_model = MagicMock()
         mock_load_model.return_value = mock_model
-        
+
         result = load_model("custom_alias")
-        
-        mock_load_model.assert_called_once_with("models:/HousingPriceClassifier@custom_alias")
+
+        mock_load_model.assert_called_once_with(
+            "models:/HousingPriceClassifier@custom_alias"
+        )
         assert result == mock_model
 
     @patch("src.utils.model_loader.mlflow.sklearn.load_model")
     def test_load_model_handles_exception(self, mock_load_model):
         """Test that load_model properly propagates exceptions."""
         mock_load_model.side_effect = Exception("Model not found")
-        
+
         with pytest.raises(Exception, match="Model not found"):
             load_model("production")
-
