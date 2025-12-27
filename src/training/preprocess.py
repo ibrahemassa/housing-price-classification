@@ -1,16 +1,16 @@
-import pandas as pd
-import numpy as np
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler, OneHotEncoder
-from sklearn.feature_extraction import FeatureHasher
-from sklearn.compose import ColumnTransformer
-from sklearn.pipeline import Pipeline
-from sklearn.impute import SimpleImputer
-from pathlib import Path
-import joblib
-import re
 import os
+import re
+from pathlib import Path
 
+import joblib
+import numpy as np
+import pandas as pd
+from sklearn.compose import ColumnTransformer
+from sklearn.feature_extraction import FeatureHasher
+from sklearn.impute import SimpleImputer
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
 RAW_DATA_PATH = "./data/HouseDataRaw.csv"
 PROCESSED_DIR = "./data/processed"
@@ -23,21 +23,16 @@ HIGH_CARD_CAT = [
     "AdCreationDate",
     "Subscription",
     "district_heating",
-    "district_floor"
+    "district_floor",
 ]
 
-LOW_CARD_CAT = [
-    "district",
-    "HeatingType",
-    "StructureType",
-    "FloorLocation"
-]
+LOW_CARD_CAT = ["district", "HeatingType", "StructureType", "FloorLocation"]
 
 NUMERIC_FEATURES = [
     "GrossSquareMeters",
     "NetSquareMeters",
     "BuildingAge",
-    "NumberOfRooms"
+    "NumberOfRooms",
 ]
 
 
@@ -49,19 +44,15 @@ def create_target(df: pd.DataFrame) -> pd.DataFrame:
     if "Unnamed: 0" in df.columns:
         df = df.drop(columns=["Unnamed: 0"])
 
-    df['price'] = (
-    df['price']
-    .str.replace(',', '', regex=True)  
-    .str.replace('TL', '', regex=True)  
-    .str.extract('(\d+\.?\d*)')[0] 
-    .astype(float)  
-)
-
-    df["price_category"] = pd.qcut(
-        df["price"],
-        q=[0, 0.4, 0.8, 1.0],
-        labels=[0, 1, 2]
+    df["price"] = (
+        df["price"]
+        .str.replace(",", "", regex=True)
+        .str.replace("TL", "", regex=True)
+        .str.extract(r"(\d+\.?\d*)")[0]
+        .astype(float)
     )
+
+    df["price_category"] = pd.qcut(df["price"], q=[0, 0.4, 0.8, 1.0], labels=[0, 1, 2])
 
     df = df.drop(columns=["price"])
 
@@ -74,6 +65,7 @@ def clean_square_meters(x):
     x = re.sub(r"[^\d]", "", str(x))
     return float(x) if x != "" else np.nan
 
+
 def clean_building_age(x):
     if pd.isna(x):
         return np.nan
@@ -81,6 +73,7 @@ def clean_building_age(x):
     if "Üzeri" in x:
         return 21
     return int(re.sub(r"[^\d]", "", x))
+
 
 def clean_rooms(x):
     if pd.isna(x):
@@ -94,16 +87,25 @@ def clean_rooms(x):
     match = re.search(r"\d+(\.\d+)?", x)
     if match:
         return float(match.group())
-    
+
     return np.nan
 
 
 MONTH_MAP = {
-    "Ocak": "01", "Şubat": "02", "Mart": "03",
-    "Nisan": "04", "Mayıs": "05", "Haziran": "06",
-    "Temmuz": "07", "Ağustos": "08", "Eylül": "09",
-    "Ekim": "10", "Kasım": "11", "Aralık": "12"
+    "Ocak": "01",
+    "Şubat": "02",
+    "Mart": "03",
+    "Nisan": "04",
+    "Mayıs": "05",
+    "Haziran": "06",
+    "Temmuz": "07",
+    "Ağustos": "08",
+    "Eylül": "09",
+    "Ekim": "10",
+    "Kasım": "11",
+    "Aralık": "12",
 }
+
 
 def clean_date(x):
     if pd.isna(x):
@@ -115,15 +117,13 @@ def clean_date(x):
         return f"{year}-{month}"
     return "unknown"
 
+
 def clean_address(x):
     if pd.isna(x):
         return "unknown"
     if isinstance(x, list):
         return " > ".join(x)
     return str(x)
-
-
-
 
 
 def clean_raw_columns(df: pd.DataFrame) -> pd.DataFrame:
@@ -147,7 +147,7 @@ def feature_cross(df: pd.DataFrame) -> pd.DataFrame:
     df["district_heating"] = (
         df["district"].astype(str) + "_" + df["HeatingType"].astype(str)
     )
-    
+
     df["district_floor"] = (
         df["district"].astype(str) + "_" + df["FloorLocation"].astype(str)
     )
@@ -155,31 +155,30 @@ def feature_cross(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-
-
 def build_preprocessor():
-    numeric_pipeline = Pipeline(steps=[
-        ("imputer", SimpleImputer(strategy="median")),
-        ("scaler", StandardScaler())
-    ])
+    numeric_pipeline = Pipeline(
+        steps=[
+            ("imputer", SimpleImputer(strategy="median")),
+            ("scaler", StandardScaler()),
+        ]
+    )
 
-    low_card_cat_pipeline = Pipeline(steps=[
-        ("imputer", SimpleImputer(strategy="most_frequent")),
-        ("onehot", OneHotEncoder(handle_unknown="ignore", sparse_output=False))
-    ])
+    low_card_cat_pipeline = Pipeline(
+        steps=[
+            ("imputer", SimpleImputer(strategy="most_frequent")),
+            ("onehot", OneHotEncoder(handle_unknown="ignore", sparse_output=False)),
+        ]
+    )
 
     preprocessor = ColumnTransformer(
         transformers=[
             ("num", numeric_pipeline, NUMERIC_FEATURES),
             ("low_cat", low_card_cat_pipeline, LOW_CARD_CAT),
         ],
-        remainder="drop"
+        remainder="drop",
     )
 
-    hasher = FeatureHasher(
-        n_features=2**14,
-        input_type="string"
-    )
+    hasher = FeatureHasher(n_features=2**14, input_type="string")
 
     return preprocessor, hasher
 
@@ -194,29 +193,16 @@ def preprocess_and_split():
     reference_dir.mkdir(parents=True, exist_ok=True)
 
     df_reference = df[
-        [
-            "district",
-            "address",
-            "HeatingType",
-            "FloorLocation",
-            "price_category"
-        ]
+        ["district", "address", "HeatingType", "FloorLocation", "price_category"]
     ].copy()
 
-    df_reference.to_parquet(
-        reference_dir / "reference.parquet",
-        index=False
-    )
+    df_reference.to_parquet(reference_dir / "reference.parquet", index=False)
 
     X = df[NUMERIC_FEATURES + LOW_CARD_CAT + HIGH_CARD_CAT]
     y = df["price_category"]
 
     X_train, X_test, y_train, y_test = train_test_split(
-        X,
-        y,
-        test_size=TEST_SIZE,
-        random_state=RANDOM_STATE,
-        stratify=y
+        X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE, stratify=y
     )
 
     preprocessor, hasher = build_preprocessor()
@@ -224,17 +210,9 @@ def preprocess_and_split():
     X_train_base = preprocessor.fit_transform(X_train)
     X_test_base = preprocessor.transform(X_test)
 
-    X_train_high = (
-        X_train[HIGH_CARD_CAT]
-        .astype(str)
-        .values.tolist()
-    )
+    X_train_high = X_train[HIGH_CARD_CAT].astype(str).values.tolist()
 
-    X_test_high = (
-        X_test[HIGH_CARD_CAT]
-        .astype(str)
-        .values.tolist()
-    )
+    X_test_high = X_test[HIGH_CARD_CAT].astype(str).values.tolist()
 
     X_train_hash = hasher.transform(X_train_high)
     X_test_hash = hasher.transform(X_test_high)

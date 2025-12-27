@@ -7,14 +7,14 @@ profile = "black"
 
 [tool.ruff]
 line-length = 88
-select = [
+lint.select = [
   "E", "F", "W",   
   "I",            
   "B",           
   "C4",         
   "UP",        
 ]
-ignore = [
+lint.ignore = [
   "E501",   
 ]
 exclude = ["data", "models", "mlruns"]
@@ -23,4 +23,5 @@ exclude = ["data", "models", "mlruns"]
 python_version = "3.13"
 ignore_missing_imports = true
 warn_unused_configs = true
+explicit_package_bases = true
 

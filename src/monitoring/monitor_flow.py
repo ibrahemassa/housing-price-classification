@@ -1,18 +1,21 @@
-from prefect import flow, task
-import subprocess
 import logging
-from pathlib import Path
-import pandas as pd
-import numpy as np
+import subprocess
+import sys
 from collections import Counter
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+from prefect import flow, task
+from prefect.artifacts import create_markdown_artifact
 from scipy.stats import entropy
+
 from src.monitoring.plot import (
+    plot_cardinality_growth,
     plot_categorical_distribution,
     plot_prediction_distribution,
-    plot_cardinality_growth,
 )
-from prefect.artifacts import create_markdown_artifact
-import sys
+
 # print(sys.path)
 
 REFERENCE_PATH = Path("data/reference/reference.parquet")
@@ -28,6 +31,7 @@ CARDINALITY_THRESHOLD = 1.3
 PRED_DRIFT_THRESHOLD = 0.15
 
 logging.basicConfig(level=logging.INFO)
+
 
 def categorical_psi(ref_series, prod_series):
     ref = Counter(ref_series)
@@ -50,6 +54,7 @@ def prediction_drift(ref_preds, prod_preds):
     r, p = r.align(p, fill_value=0)
     return entropy(r.values, p.values)
 
+
 @task
 def run_monitor():
     if not PROD_INPUTS.exists() or not PROD_PREDS.exists():
@@ -68,9 +73,8 @@ def run_monitor():
     if d_psi > PSI_THRESHOLD:
         alerts += 1
 
-    card_ratio = (
-        prod_inputs[HIGH_CARD_FEATURE].nunique()
-        / max(ref[HIGH_CARD_FEATURE].nunique(), 1)
+    card_ratio = prod_inputs[HIGH_CARD_FEATURE].nunique() / max(
+        ref[HIGH_CARD_FEATURE].nunique(), 1
     )
     logging.info(f"Address cardinality ratio: {card_ratio:.2f}")
     if card_ratio > CARDINALITY_THRESHOLD:
@@ -82,13 +86,9 @@ def run_monitor():
         alerts += 1
 
     try:
-        district_plot = plot_categorical_distribution(
-            ref, prod_inputs, "district"
-        )
+        district_plot = plot_categorical_distribution(ref, prod_inputs, "district")
 
-        cardinality_plot = plot_cardinality_growth(
-            ref, prod_inputs, "address"
-        )
+        cardinality_plot = plot_cardinality_growth(ref, prod_inputs, "address")
 
         prediction_plot = plot_prediction_distribution(
             ref["target"], prod_preds["prediction"]
@@ -102,7 +102,7 @@ def run_monitor():
     - District distribution: `{district_plot}`
     - Address cardinality: `{cardinality_plot}`
     - Prediction drift: `{prediction_plot}`
-    """
+    """,
         )
 
     except Exception as e:
@@ -114,10 +114,11 @@ def run_monitor():
     else:
         logging.info("Model stable")
 
+
 @flow(name="housing-monitoring-flow")
 def monitoring_flow():
     run_monitor()
 
+
 if __name__ == "__main__":
     monitoring_flow()
-

@@ -1,6 +1,7 @@
-import pandas as pd
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+
+import pandas as pd
 
 LOG_DIR = Path("data/production")
 LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -21,13 +22,10 @@ def log_input(data: dict):
 
 
 def log_prediction(prediction: int):
-    df = pd.DataFrame(
-        [{"prediction": prediction, "timestamp": datetime.utcnow()}]
-    )
+    df = pd.DataFrame([{"prediction": prediction, "timestamp": datetime.utcnow()}])
 
     if PRED_LOG.exists():
         df_old = pd.read_parquet(PRED_LOG)
         df = pd.concat([df_old, df], ignore_index=True)
 
     df.to_parquet(PRED_LOG)
-

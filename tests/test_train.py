@@ -1,14 +1,13 @@
-import pytest
+from unittest.mock import MagicMock, patch
+
 import numpy as np
-from unittest.mock import patch, MagicMock
-import joblib
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.linear_model import LogisticRegression
+import pytest
+
 from src.training.train import (
-    load_data,
     get_class_weights,
+    load_data,
     train_baseline,
-    train_main_model
+    train_main_model,
 )
 
 
@@ -28,13 +27,10 @@ class TestTrain:
     def test_load_data(self, mock_load, sample_training_data):
         """Test loading training data."""
         X_train, X_test, y_train, y_test = sample_training_data
-        mock_load.side_effect = [
-            (X_train, y_train),
-            (X_test, y_test)
-        ]
-        
+        mock_load.side_effect = [(X_train, y_train), (X_test, y_test)]
+
         X_tr, X_te, y_tr, y_te = load_data()
-        
+
         assert np.array_equal(X_tr, X_train)
         assert np.array_equal(X_te, X_test)
         assert np.array_equal(y_tr, y_train)
@@ -44,7 +40,7 @@ class TestTrain:
         """Test computing class weights."""
         y = np.array([0, 0, 1, 1, 2])
         weights = get_class_weights(y)
-        
+
         assert isinstance(weights, dict)
         assert 0 in weights
         assert 1 in weights
@@ -65,22 +61,19 @@ class TestTrain:
         mock_mlflow_run,
         mock_log_metric,
         mock_log_param,
-        sample_training_data
+        sample_training_data,
     ):
         """Test training baseline model."""
         X_train, X_test, y_train, y_test = sample_training_data
-        mock_load.side_effect = [
-            (X_train, y_train),
-            (X_test, y_test)
-        ]
-        
+        mock_load.side_effect = [(X_train, y_train), (X_test, y_test)]
+
         mock_acc.return_value = 0.85
         mock_f1.return_value = 0.82
         mock_context = MagicMock()
         mock_mlflow_run.return_value.__enter__.return_value = mock_context
-        
+
         acc, f1 = train_baseline(X_train, X_test, y_train, y_test)
-        
+
         assert acc == 0.85
         assert f1 == 0.82
         mock_log_param.assert_called()
@@ -106,15 +99,12 @@ class TestTrain:
         mock_mlflow_run,
         mock_log_metric,
         mock_log_param,
-        sample_training_data
+        sample_training_data,
     ):
         """Test training main model."""
         X_train, X_test, y_train, y_test = sample_training_data
-        mock_load.side_effect = [
-            (X_train, y_train),
-            (X_test, y_test)
-        ]
-        
+        mock_load.side_effect = [(X_train, y_train), (X_test, y_test)]
+
         mock_acc.return_value = 0.90
         mock_f1.return_value = 0.88
         # Mock mlflow.start_run to return a context manager
@@ -122,9 +112,9 @@ class TestTrain:
         mock_mlflow_run.return_value = mock_run
         mock_run.__enter__ = MagicMock(return_value=mock_run)
         mock_run.__exit__ = MagicMock(return_value=None)
-        
+
         acc, f1 = train_main_model(X_train, X_test, y_train, y_test)
-        
+
         assert acc == 0.90
         assert f1 == 0.88
         mock_dump.assert_called_once()
@@ -148,11 +138,11 @@ class TestTrain:
         mock_mlflow_run,
         mock_log_metric,
         mock_log_param,
-        sample_training_data
+        sample_training_data,
     ):
         """Test that train_main_model saves model to file."""
         X_train, X_test, y_train, y_test = sample_training_data
-        
+
         mock_acc.return_value = 0.90
         mock_f1.return_value = 0.88
         # Mock mlflow.start_run to return a context manager
@@ -160,9 +150,9 @@ class TestTrain:
         mock_mlflow_run.return_value = mock_run
         mock_run.__enter__ = MagicMock(return_value=mock_run)
         mock_run.__exit__ = MagicMock(return_value=None)
-        
+
         train_main_model(X_train, X_test, y_train, y_test)
-        
+
         # Verify model was dumped
         mock_dump.assert_called_once()
         dump_args = mock_dump.call_args
@@ -172,7 +162,7 @@ class TestTrain:
         """Test that class weights are balanced for imbalanced data."""
         y = np.array([0] * 80 + [1] * 15 + [2] * 5)
         weights = get_class_weights(y)
-        
+
         # Class 2 should have higher weight (fewer samples)
         assert weights[2] > weights[0]
 
@@ -188,19 +178,18 @@ class TestTrain:
         mock_mlflow_run,
         mock_log_metric,
         mock_log_param,
-        sample_training_data
+        sample_training_data,
     ):
         """Test that baseline model uses balanced class weights."""
         X_train, X_test, y_train, y_test = sample_training_data
-        
+
         mock_acc.return_value = 0.85
         mock_f1.return_value = 0.82
         mock_context = MagicMock()
         mock_mlflow_run.return_value.__enter__.return_value = mock_context
-        
+
         train_baseline(X_train, X_test, y_train, y_test)
-        
+
         # Verify mlflow logging
         assert mock_log_param.called
         assert mock_log_metric.called
-
