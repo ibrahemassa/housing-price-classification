@@ -9,3 +9,10 @@ prefect
 pytest
 pytest-mock
 pytest-cov
+black
+isort
+ruff
+mypy
+pytest
+pre-commit
+bandit

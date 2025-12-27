@@ -1,0 +1,26 @@
+[tool.black]
+line-length = 88
+target-version = ["py313"]
+
+[tool.isort]
+profile = "black"
+
+[tool.ruff]
+line-length = 88
+select = [
+  "E", "F", "W",   
+  "I",            
+  "B",           
+  "C4",         
+  "UP",        
+]
+ignore = [
+  "E501",   
+]
+exclude = ["data", "models", "mlruns"]
+
+[tool.mypy]
+python_version = "3.13"
+ignore_missing_imports = true
+warn_unused_configs = true
+
