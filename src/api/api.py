@@ -95,7 +95,7 @@ def predict(input_data: HousingInput):
     prediction = model.predict(X)[0]
     log_prediction(int(prediction))
 
-    print(f"Prediction: {prediction}")
+    # print(f"Prediction: {prediction}")
 
     return {
         "price_category": CATEGORIES[int(prediction)]
