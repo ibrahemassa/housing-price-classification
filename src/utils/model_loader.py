@@ -1,8 +1,6 @@
 import mlflow
 import mlflow.sklearn
 
-import os
-
 MODEL_NAME = "HousingPriceClassifier"
 
 

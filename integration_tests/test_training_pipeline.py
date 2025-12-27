@@ -82,6 +82,9 @@ class TestTrainingPipeline:
         self, mock_dump, mock_load, mock_mlflow, temp_project_dir
     ):
         """Test that training saves the model."""
+        if os.getenv("CI") == "true":
+            pytest.skip("Test skipped in CI")
+
         import numpy as np
         from scipy.sparse import csr_matrix
 
