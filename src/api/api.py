@@ -28,6 +28,7 @@ CATEGORIES = {0: "low", 1: "medium", 2: "high"}
 
 model = None
 
+
 def get_model():
     global model
     if model is None:
@@ -38,6 +39,7 @@ def get_model():
             model = load_model("staging")
 
     return model
+
 
 preprocessor = joblib.load(PREPROCESSOR_PATH)
 hasher = joblib.load(HASHER_PATH)

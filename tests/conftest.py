@@ -131,15 +131,16 @@ def mock_hasher():
     hasher = FeatureHasher(n_features=2**14, input_type="string")
     return hasher
 
+
 @pytest.fixture(autouse=True)
 def mock_mlflow(monkeypatch):
     mock_model = MagicMock()
     mock_model.predict.return_value = [100000]
 
     monkeypatch.setattr(
-        "src.utils.model_loader.mlflow.sklearn.load_model",
-        lambda _: mock_model
+        "src.utils.model_loader.mlflow.sklearn.load_model", lambda _: mock_model
     )
+
 
 @pytest.fixture
 def sample_reference_data():

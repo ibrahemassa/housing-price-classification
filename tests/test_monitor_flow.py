@@ -174,12 +174,9 @@ class TestMonitorFlow:
         # Note: The actual logic checks if alerts >= 2, and with high drift
         # we should have multiple alerts
 
-    @patch("src.monitoring.monitor_flow.Path.exists")
-    def test_run_monitor_no_production_data(self, mock_exists):
-        """Test monitoring when production data doesn't exist."""
-        mock_exists.return_value = False
-
-        # Should not raise error, just skip
+    @patch("src.monitoring.monitor_flow.subprocess.run")
+    def test_run_monitor_no_production_data(self, mock_run):
+        mock_run.return_value.returncode = 0
         run_monitor()
 
     @patch("src.monitoring.monitor_flow.run_monitor")
