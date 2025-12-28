@@ -10,3 +10,11 @@ __pycache__/
 mlruns/
 data/
 models/
+htmlcov/
+.pytest_cache/
+.coverage
+*.egg-info/
+dist/
+build/
+.DS_Store
+*.log

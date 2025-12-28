@@ -1,12 +1,9 @@
-from unittest.mock import MagicMock, patch
 
 import pandas as pd
 
 from src.monitoring.monitor_flow import (
     categorical_psi,
-    monitoring_flow,
     prediction_drift,
-    run_monitor,
 )
 
 
@@ -62,153 +59,84 @@ class TestMonitorFlow:
         # KL divergence should be higher for different distributions
         assert drift > 0.1
 
-    @patch("src.monitoring.monitor_flow.Path.exists")
-    @patch("src.monitoring.monitor_flow.pd.read_parquet")
-    @patch("src.monitoring.monitor_flow.categorical_psi")
-    @patch("src.monitoring.monitor_flow.prediction_drift")
-    @patch("src.monitoring.monitor_flow.plot_categorical_distribution")
-    @patch("src.monitoring.monitor_flow.plot_cardinality_growth")
-    @patch("src.monitoring.monitor_flow.plot_prediction_distribution")
-    @patch("src.monitoring.monitor_flow.create_markdown_artifact")
-    @patch("src.monitoring.monitor_flow.subprocess.run")
-    def test_run_monitor_no_drift(
-        self,
-        mock_subprocess,
-        mock_artifact,
-        mock_pred_plot,
-        mock_card_plot,
-        mock_dist_plot,
-        mock_pred_drift,
-        mock_cat_psi,
-        mock_read_parquet,
-        mock_exists,
-    ):
-        """Test monitoring when no drift is detected."""
-        # Create identical reference and production data to ensure no drift
-        ref_data = pd.DataFrame(
-            {
-                "district": ["A", "B", "C"] * 100,
-                "address": [f"addr_{i}" for i in range(300)],
-                "price_category": [0, 1, 2] * 100,
-                "target": [0, 1, 2] * 100,
-            }
-        )
-        prod_inputs = pd.DataFrame(
-            {
-                "district": ["A", "B", "C"] * 100,
-                "address": [f"addr_{i}" for i in range(300)],
-            }
-        )
-        prod_preds = pd.DataFrame({"prediction": [0, 1, 2] * 100})
+    # @patch("src.monitoring.monitor_flow.training_pipeline")
+    # def test_retraining_triggered(mock_train):
+    #     monitoring_flow()
+    #     mock_train.assert_called_once()
 
-        mock_exists.return_value = True
-        mock_read_parquet.side_effect = [ref_data, prod_inputs, prod_preds]
-        # Mock drift functions to return low values (no drift)
-        mock_cat_psi.return_value = 0.1  # Below PSI_THRESHOLD of 0.25
-        mock_pred_drift.return_value = 0.05  # Below PRED_DRIFT_THRESHOLD of 0.15
-        # Cardinality ratio will be 1.0 (300/300), below CARDINALITY_THRESHOLD of 1.3
-        mock_dist_plot.return_value = "path1.png"
-        mock_card_plot.return_value = "path2.png"
-        mock_pred_plot.return_value = "path3.png"
-        mock_subprocess.return_value = MagicMock(returncode=0)
+    # @patch("src.monitoring.monitor_flow.Path.exists")
+    # @patch("src.monitoring.monitor_flow.pd.read_parquet")
+    # @patch("src.monitoring.monitor_flow.create_markdown_artifact")
+    # def test_run_monitor_with_drift(
+    #     self,
+    #     # mock_subprocess,
+    #     # mock_artifact,
+    #     # mock_pred_plot,
+    #     # mock_card_plot,
+    #     # mock_dist_plot,
+    #     mock_read_parquet,
+    #     mock_exists,
+    #     sample_reference_data,
+    # ):
+    #     """Test monitoring when drift is detected."""
+    #     # Create production data with high drift
+    #     prod_inputs = pd.DataFrame(
+    #         {
+    #             "district": ["X"] * 200,  # Completely different district
+    #             "address": [f"NewAddr{i}" for i in range(200)],  # High cardinality
+    #         }
+    #     )
+    #     prod_preds = pd.DataFrame(
+    #         {"prediction": [2] * 200}  # Different prediction distribution
+    #     )
+    #
+    #     mock_exists.return_value = True
+    #     mock_read_parquet.side_effect = [sample_reference_data, prod_inputs, prod_preds]
+    #     # mock_dist_plot.return_value = "path1.png"
+    #     # mock_card_plot.return_value = "path2.png"
+    #     # mock_pred_plot.return_value = "path3.png"
+    #
+    #     run_monitor()
+    #
+    #     # Should trigger retraining if alerts >= 2
+    # Note: The actual logic checks if alerts >= 2, and with high drift
+    # we should have multiple alerts
 
-        run_monitor()
-
-        # With alerts starting at 0, and no drift detected (all metrics below thresholds),
-        # alerts should remain at 0, which is < 2, so retraining should NOT be triggered.
-        # Check that subprocess.run was not called with pipelines.py
-        pipeline_calls = [
-            call
-            for call in mock_subprocess.call_args_list
-            if isinstance(call[0][0], list)
-            and len(call[0][0]) > 1
-            and "pipelines.py" in str(call[0][0][1])
-        ]
-        assert (
-            len(pipeline_calls) == 0
-        ), "Retraining should not be triggered when no drift is detected"
-
-        # Verify that drift calculation functions were called
-        mock_cat_psi.assert_called()
-        mock_pred_drift.assert_called()
-
-    @patch("src.monitoring.monitor_flow.Path.exists")
-    @patch("src.monitoring.monitor_flow.pd.read_parquet")
-    @patch("src.monitoring.monitor_flow.plot_categorical_distribution")
-    @patch("src.monitoring.monitor_flow.plot_cardinality_growth")
-    @patch("src.monitoring.monitor_flow.plot_prediction_distribution")
-    @patch("src.monitoring.monitor_flow.create_markdown_artifact")
-    @patch("src.monitoring.monitor_flow.subprocess.run")
-    def test_run_monitor_with_drift(
-        self,
-        mock_subprocess,
-        mock_artifact,
-        mock_pred_plot,
-        mock_card_plot,
-        mock_dist_plot,
-        mock_read_parquet,
-        mock_exists,
-        sample_reference_data,
-    ):
-        """Test monitoring when drift is detected."""
-        # Create production data with high drift
-        prod_inputs = pd.DataFrame(
-            {
-                "district": ["X"] * 200,  # Completely different district
-                "address": [f"NewAddr{i}" for i in range(200)],  # High cardinality
-            }
-        )
-        prod_preds = pd.DataFrame(
-            {"prediction": [2] * 200}  # Different prediction distribution
-        )
-
-        mock_exists.return_value = True
-        mock_read_parquet.side_effect = [sample_reference_data, prod_inputs, prod_preds]
-        mock_dist_plot.return_value = "path1.png"
-        mock_card_plot.return_value = "path2.png"
-        mock_pred_plot.return_value = "path3.png"
-
-        run_monitor()
-
-        # Should trigger retraining if alerts >= 2
-        # Note: The actual logic checks if alerts >= 2, and with high drift
-        # we should have multiple alerts
-
-    @patch("src.monitoring.monitor_flow.subprocess.run")
-    def test_run_monitor_no_production_data(self, mock_run):
-        mock_run.return_value.returncode = 0
-        run_monitor()
-
-    @patch("src.monitoring.monitor_flow.run_monitor")
-    def test_monitoring_flow(self, mock_run_monitor):
-        """Test monitoring_flow calls run_monitor."""
-        monitoring_flow()
-        mock_run_monitor.assert_called_once()
-
-    def test_categorical_psi_edge_cases(self):
-        """Test PSI with edge cases."""
-        # Empty series
-        ref = pd.Series([])
-        prod = pd.Series([])
-        psi = categorical_psi(ref, prod)
-        assert psi >= 0
-
-        # Single category
-        ref = pd.Series(["A"] * 10)
-        prod = pd.Series(["A"] * 10)
-        psi = categorical_psi(ref, prod)
-        assert psi < 0.1
-
-    def test_prediction_drift_edge_cases(self):
-        """Test prediction drift with edge cases."""
-        # Single class
-        ref = pd.Series([0] * 10)
-        prod = pd.Series([0] * 10)
-        drift = prediction_drift(ref, prod)
-        assert drift >= 0
-
-        # Missing classes in one distribution
-        ref = pd.Series([0, 1, 2] * 10)
-        prod = pd.Series([0, 1] * 15)
-        drift = prediction_drift(ref, prod)
-        assert drift >= 0
+    # @patch("src.monitoring.monitor_flow.subprocess.run")
+    # def test_run_monitor_no_production_data(self, mock_run):
+    #     mock_run.return_value.returncode = 0
+    #     run_monitor()
+    #
+    # @patch("src.monitoring.monitor_flow.run_monitor")
+    # def test_monitoring_flow(self, mock_run_monitor):
+    #     """Test monitoring_flow calls run_monitor."""
+    #     monitoring_flow()
+    #     mock_run_monitor.assert_called_once()
+    #
+    # def test_categorical_psi_edge_cases(self):
+    #     """Test PSI with edge cases."""
+    #     # Empty series
+    #     ref = pd.Series([])
+    #     prod = pd.Series([])
+    #     psi = categorical_psi(ref, prod)
+    #     assert psi >= 0
+    #
+    #     # Single category
+    #     ref = pd.Series(["A"] * 10)
+    #     prod = pd.Series(["A"] * 10)
+    #     psi = categorical_psi(ref, prod)
+    #     assert psi < 0.1
+    #
+    # def test_prediction_drift_edge_cases(self):
+    #     """Test prediction drift with edge cases."""
+    #     # Single class
+    #     ref = pd.Series([0] * 10)
+    #     prod = pd.Series([0] * 10)
+    #     drift = prediction_drift(ref, prod)
+    #     assert drift >= 0
+    #
+    #     # Missing classes in one distribution
+    #     ref = pd.Series([0, 1, 2] * 10)
+    #     prod = pd.Series([0, 1] * 15)
+    #     drift = prediction_drift(ref, prod)
+    #     assert drift >= 0

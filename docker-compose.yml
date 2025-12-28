@@ -1,49 +1,141 @@
 services:
-  api:
+  # Prefect server for flow orchestration
+  prefect-server:
+    image: prefecthq/prefect:3.6.8-python3.13
+    container_name: mlops-prefect
+    ports:
+      - "${PREFECT_PORT:-4200}:4200"
+    command: prefect server start --host 0.0.0.0 --port 4200
+    env_file:
+      - .env
+    volumes:
+      - prefect-db:/root/.prefect
+    networks:
+      - mlops-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:4200/api/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
+
+  # MLflow server for model tracking UI
+  mlflow-server:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.mlflow
+    container_name: mlops-mlflow
+    working_dir: /app
     ports:
-      - "8000:8000"
-    environment:
-      MLFLOW_TRACKING_URI: http://mlflow:5000
+      - "${MLFLOW_PORT:-5000}:5000"
+    env_file:
+      - .env
     volumes:
-      - ./data:/app/data
-      - ./models:/app/models
+      - ./mlflow.db:/app/mlflow.db
       - ./mlruns:/app/mlruns
-    depends_on:
-      - mlflow
+    # command: >
+    #   sh -c "pip install --no-cache-dir mlflow && 
+    #          mlflow server --host 0.0.0.0 --port 5000 
+    #          --backend-store-uri sqlite:///mlflow.db 
+    #          --default-artifact-root file:./mlruns"
+    networks:
+      - mlops-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
 
-  prefect-server:
-    image: prefecthq/prefect:2-latest
-    command: prefect server start --host 0.0.0.0
-    ports:
-      - "4200:4200"
-
-  prefect:
+  # Training service - runs Prefect training pipeline
+  train:
     build:
       context: .
       dockerfile: Dockerfile.train
-    environment:
-      PREFECT_API_URL: http://prefect-server:4200/api
+    container_name: mlops-train
     volumes:
+      # Mount data directory for input/output
       - ./data:/app/data
+      # Mount models directory for saving trained models
+      - ./models:/app/models
+      # Mount MLflow database for tracking
+      - ./mlflow.db:/app/mlflow.db
+      # Mount MLruns for MLflow artifacts
       - ./mlruns:/app/mlruns
+    env_file:
+      - .env
+    networks:
+      - mlops-network
     depends_on:
-      - prefect-server
+      prefect-server:
+        condition: service_healthy
+      mlflow-server:
+        condition: service_healthy
+    restart: no
+    # Uncomment to run training on startup
+    # command: python -m src.utils.pipelines
 
-
-
-  mlflow:
-    image: ghcr.io/mlflow/mlflow:v2.12.1
-    ports:
-      - "5000:5000"
-    command: >
-      mlflow server
-      --host 0.0.0.0
-      --port 5000
-      --backend-store-uri sqlite:///mlflow.db
-      --default-artifact-root /mlruns
+  # Monitoring service - runs Prefect monitoring flow and can trigger training
+  monitor:
+    build:
+      context: .
+      dockerfile: Dockerfile.monitor
+    container_name: mlops-monitor
     volumes:
-      - ./mlruns:/mlruns
-      - ./mlflow.db:/mlflow.db
+      # Mount data directory for monitoring data
+      - ./data:/app/data
+      # Mount models directory (in case monitoring needs to check models)
+      - ./models:/app/models
+      # Mount MLflow database for tracking
+      - ./mlflow.db:/app/mlflow.db
+      # Mount MLruns for MLflow artifacts
+      - ./mlruns:/app/mlruns
+    env_file:
+      - .env
+    networks:
+      - mlops-network
+    depends_on:
+      prefect-server:
+        condition: service_healthy
+      mlflow-server:
+        condition: service_healthy
+      train:
+        condition: service_started
+    # Monitoring can trigger training by calling the pipeline script
+    # The monitoring flow will run the training pipeline when drift is detected
+    restart: no
+
+  # API service - serves predictions
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    container_name: mlops-api
+    ports:
+      - "${API_PORT:-8081}:8081"
+    volumes:
+      # Mount data directory for preprocessors
+      - ./data:/app/data
+      # Mount models directory for loading models
+      - ./models:/app/models
+      # Mount MLflow database for model registry
+      - ./mlflow.db:/app/mlflow.db
+      # Mount MLruns for MLflow artifacts
+      - ./mlruns:/app/mlruns
+    env_file:
+      - .env
+    networks:
+      - mlops-network
+    depends_on:
+      mlflow-server:
+        condition: service_healthy
+    restart: no
+
+volumes:
+  prefect-db:
+
+networks:
+  mlops-network:
+    driver: bridge

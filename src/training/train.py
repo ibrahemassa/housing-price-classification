@@ -22,7 +22,9 @@ TEST_PATH = f"{PROCESSED_DIR}/test.pkl"
 
 RANDOM_STATE = 42
 
-mlflow.set_tracking_uri("sqlite:///mlflow.db")
+# Use MLflow server if available, otherwise fall back to local SQLite
+mlflow_uri = os.getenv("MLFLOW_TRACKING_URI", "sqlite:///mlflow.db")
+mlflow.set_tracking_uri(mlflow_uri)
 mlflow.set_experiment("housing-price-classification")
 
 

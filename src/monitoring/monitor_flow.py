@@ -1,9 +1,9 @@
 import logging
-import subprocess
-import sys
+import os
 from collections import Counter
 from pathlib import Path
 
+import mlflow
 import numpy as np
 import pandas as pd
 from prefect import flow, task
@@ -15,6 +15,7 @@ from src.monitoring.plot import (
     plot_categorical_distribution,
     plot_prediction_distribution,
 )
+from src.utils.pipelines import training_pipeline
 
 # print(sys.path)
 
@@ -57,67 +58,95 @@ def prediction_drift(ref_preds, prod_preds):
 
 @task
 def run_monitor():
-    if not PROD_INPUTS.exists() or not PROD_PREDS.exists():
-        logging.info("No production data yet — skipping monitoring")
-        # return
+    mlflow_uri = os.getenv("MLFLOW_TRACKING_URI", "sqlite:///mlflow.db")
+    mlflow.set_tracking_uri(mlflow_uri)
+    mlflow.set_experiment("monitoring")
 
-    ref = pd.read_parquet(REFERENCE_PATH)
-    prod_inputs = pd.read_parquet(PROD_INPUTS)
-    prod_preds = pd.read_parquet(PROD_PREDS)
+    with mlflow.start_run(run_name="drift-check"):
+        if not PROD_INPUTS.exists() or not PROD_PREDS.exists():
+            logging.info("No production data yet — skipping monitoring")
+            # return
 
-    alerts = 0
-    # alerts = 3
+        ref = pd.read_parquet(REFERENCE_PATH)
+        prod_inputs = pd.read_parquet(PROD_INPUTS)
+        prod_preds = pd.read_parquet(PROD_PREDS)
 
-    d_psi = categorical_psi(ref[CAT_FEATURE], prod_inputs[CAT_FEATURE])
-    logging.info(f"District PSI: {d_psi:.4f}")
-    if d_psi > PSI_THRESHOLD:
-        alerts += 1
+        alerts = 0
 
-    card_ratio = prod_inputs[HIGH_CARD_FEATURE].nunique() / max(
-        ref[HIGH_CARD_FEATURE].nunique(), 1
-    )
-    logging.info(f"Address cardinality ratio: {card_ratio:.2f}")
-    if card_ratio > CARDINALITY_THRESHOLD:
-        alerts += 1
+        d_psi = categorical_psi(ref[CAT_FEATURE], prod_inputs[CAT_FEATURE])
+        logging.info(f"District PSI: {d_psi:.4f}")
+        if d_psi > PSI_THRESHOLD:
+            alerts += 1
 
-    pred_drift = prediction_drift(ref["price_category"], prod_preds["prediction"])
-    logging.info(f"Prediction KL drift: {pred_drift:.4f}")
-    if pred_drift > PRED_DRIFT_THRESHOLD:
-        alerts += 1
-
-    try:
-        district_plot = plot_categorical_distribution(ref, prod_inputs, "district")
-
-        cardinality_plot = plot_cardinality_growth(ref, prod_inputs, "address")
-
-        prediction_plot = plot_prediction_distribution(
-            ref["target"], prod_preds["prediction"]
+        card_ratio = prod_inputs[HIGH_CARD_FEATURE].nunique() / max(
+            ref[HIGH_CARD_FEATURE].nunique(), 1
         )
+        logging.info(f"Address cardinality ratio: {card_ratio:.2f}")
+        if card_ratio > CARDINALITY_THRESHOLD:
+            alerts += 1
+
+        pred_drift = prediction_drift(ref["price_category"], prod_preds["prediction"])
+        logging.info(f"Prediction KL drift: {pred_drift:.4f}")
+        if pred_drift > PRED_DRIFT_THRESHOLD:
+            alerts += 1
+
+        mlflow.log_metric("district_psi", d_psi)
+        mlflow.log_metric("address_cardinality_ratio", card_ratio)
+        mlflow.log_metric("prediction_kl_drift", pred_drift)
+        mlflow.log_metric("alerts", alerts)
 
         create_markdown_artifact(
-            key="drift-plots",
+            key="drift-summary",
             markdown=f"""
+## Drift Summary
+
+        | Metric | Value | Threshold | Status |
+        |------|------|-----------|--------|
+        | District PSI | {d_psi:.3f} | {PSI_THRESHOLD} | {"❌" if d_psi > PSI_THRESHOLD else "✅"} |
+        | Cardinality | {card_ratio:.2f} | {CARDINALITY_THRESHOLD} | {"❌" if card_ratio > CARDINALITY_THRESHOLD else "✅"} |
+        | Prediction KL | {pred_drift:.3f} | {PRED_DRIFT_THRESHOLD} | {"❌" if pred_drift > PRED_DRIFT_THRESHOLD else "✅"} |
+""",
+        )
+        try:
+            district_plot = plot_categorical_distribution(ref, prod_inputs, "district")
+
+            cardinality_plot = plot_cardinality_growth(ref, prod_inputs, "address")
+
+            prediction_plot = plot_prediction_distribution(
+                ref["target"], prod_preds["prediction"]
+            )
+
+            create_markdown_artifact(
+                key="drift-plots",
+                markdown=f"""
 ### Drift Monitoring Plots
 
-    - District distribution: `{district_plot}`
-    - Address cardinality: `{cardinality_plot}`
-    - Prediction drift: `{prediction_plot}`
-    """,
-        )
+        - District distribution: `{district_plot}`
+        - Address cardinality: `{cardinality_plot}`
+        - Prediction drift: `{prediction_plot}`
+        """,
+            )
 
-    except Exception as e:
-        logging.warning(f"Plotting failed: {e}")
+            # mlflow.log_artifact(district_plot)
+            # mlflow.log_artifact(cardinality_plot)
+            # mlflow.log_artifact(prediction_plot)
 
-    if alerts >= 2:
-        logging.error("Drift detected — triggering retraining pipeline")
-        subprocess.run([sys.executable, PIPELINE], check=True)
-    else:
-        logging.info("Model stable")
+        except Exception as e:
+            logging.warning(f"Plotting failed: {e}")
+
+        return alerts
 
 
 @flow(name="housing-monitoring-flow")
 def monitoring_flow():
-    run_monitor()
+    alerts = run_monitor()
+
+    if alerts >= 3:
+        logging.error("Drift detected — triggering retraining pipeline")
+        training_pipeline()
+
+    else:
+        logging.info("Model stable")
 
 
 if __name__ == "__main__":

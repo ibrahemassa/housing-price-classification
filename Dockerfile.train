@@ -1,15 +1,25 @@
 FROM python:3.13-slim
 
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
 WORKDIR /app
 
+# Install system dependencies
+# RUN apt-get update 
+# Copy requirements first for better caching
 COPY requirements.txt .
+
+# Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY src/ src/
+# Copy source code
+COPY src/ ./src/
+COPY pyproject.toml .
 
-CMD ["prefect", "worker", "start", "--pool", "default-agent-pool"]
+# Set default environment variables (can be overridden via .env file in docker-compose)
+ENV PYTHONPATH=/app
+ENV PREFECT_API_URL=http://prefect-server:4200/api
+ENV MLFLOW_TRACKING_URI=http://mlflow-server:5000
+ENV GIT_PYTHON_REFRESH=quiet
+
+# Default command: run the training pipeline
+CMD ["python", "-m", "src.utils.pipelines"]
+
