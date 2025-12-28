@@ -193,9 +193,7 @@ class TestMLOpsPipeline:
             }
         )
 
-        pd.DataFrame(
-            {"prediction": [2] * 100}  # Different predictions (high drift)
-        )
+        pd.DataFrame({"prediction": [2] * 100})  # Different predictions (high drift)
 
     def test_complete_workflow_integration(self, temp_project):
         """Test the complete workflow from start to finish."""
