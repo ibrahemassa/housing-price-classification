@@ -14,8 +14,6 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Debug env
-        env:
-          ECR_API_IMAGE: ${{ secrets.ECR_API_IMAGE }}
         run: |
           echo "ECR_API_IMAGE=$ECR_API_IMAGE" 
       #
