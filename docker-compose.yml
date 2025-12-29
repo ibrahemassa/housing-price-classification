@@ -22,6 +22,7 @@ services:
 
   # MLflow server for model tracking UI
   mlflow-server:
+    image: ${ECR_MLFLOW_IMAGE}
     build:
       context: .
       dockerfile: Dockerfile.mlflow
@@ -51,6 +52,7 @@ services:
 
   # Training service - runs Prefect training pipeline
   train:
+    image: ${ECR_TRAIN_IMAGE}
     build:
       context: .
       dockerfile: Dockerfile.train
@@ -79,6 +81,7 @@ services:
 
   # Monitoring service - runs Prefect monitoring flow and can trigger training
   monitor:
+    image: ${ECR_MONITOR_IMAGE}
     build:
       context: .
       dockerfile: Dockerfile.monitor
@@ -109,6 +112,7 @@ services:
 
   # API service - serves predictions
   api:
+    image: ${ECR_API_IMAGE}
     build:
       context: .
       dockerfile: Dockerfile.api
