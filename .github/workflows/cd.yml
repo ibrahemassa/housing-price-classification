@@ -13,53 +13,49 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Debug env
-        run: |
-          echo "ECR_API_IMAGE=$ECR_API_IMAGE" 
-      #
-      # - name: Configure AWS credentials
-      #   uses: aws-actions/configure-aws-credentials@v4
-      #   with:
-      #     aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-      #     aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      #     aws-region: ${{ secrets.AWS_REGION }}
-      #
-      # - name: Login to Amazon ECR
-      #   uses: aws-actions/amazon-ecr-login@v2
-      #
-      # - name: Build images with Docker Compose
-      #   env:
-      #     ECR_MLFLOW_IMAGE: ${{ secrets.ECR_MLFLOW_IMAGE }}:${{ github.sha }}
-      #     ECR_TRAIN_IMAGE: ${{ secrets.ECR_TRAIN_IMAGE }}:${{ github.sha }}
-      #     ECR_MONITOR_IMAGE: ${{ secrets.ECR_MONITOR_IMAGE }}:${{ github.sha }}
-      #     ECR_API_IMAGE: ${{ secrets.ECR_API_IMAGE }}:${{ github.sha }}
-      #   run: docker compose -f docker-compose.yml build
-      #
-      # - name: Push images to ECR
-      #   env:
-      #     ECR_MLFLOW_IMAGE: ${{ secrets.ECR_MLFLOW_IMAGE }}:${{ github.sha }}
-      #     ECR_TRAIN_IMAGE: ${{ secrets.ECR_TRAIN_IMAGE }}:${{ github.sha }}
-      #     ECR_MONITOR_IMAGE: ${{ secrets.ECR_MONITOR_IMAGE }}:${{ github.sha }}
-      #     ECR_API_IMAGE: ${{ secrets.ECR_API_IMAGE }}:${{ github.sha }}
-      #   run: docker compose -f docker-compose.yml push
-      #
-      # - name: Deploy on EC2
-      #   uses: appleboy/ssh-action@v1.0.3
-      #   with:
-      #     host: ${{ secrets.EC2_HOST }}
-      #     username: ${{ secrets.EC2_USER }}
-      #     key: ${{ secrets.EC2_SSH_KEY }}
-      #     script: |
-      #       set -e
-      #
-      #       aws ecr get-login-password --region ${{ secrets.AWS_REGION }} \
-      #         | docker login --username AWS --password-stdin $(echo ${{ secrets.ECR_API_IMAGE }} | cut -d/ -f1)
-      #
-      #       export ECR_MLFLOW_IMAGE=${{ secrets.ECR_MLFLOW_IMAGE }}:${{ github.sha }}
-      #       export ECR_TRAIN_IMAGE=${{ secrets.ECR_TRAIN_IMAGE }}:${{ github.sha }}
-      #       export ECR_MONITOR_IMAGE=${{ secrets.ECR_MONITOR_IMAGE }}:${{ github.sha }}
-      #       export ECR_API_IMAGE=${{ secrets.ECR_API_IMAGE }}:${{ github.sha }}
-      #
-      #       cd mlops-app
-      #       docker compose -f docker-compose.prod.yml pull
-      #       docker compose -f docker-compose.prod.yml up -d --remove-orphans
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build images with Docker Compose
+        env:
+          ECR_MLFLOW_IMAGE: ${{ secrets.ECR_MLFLOW_IMAGE }}:${{ github.sha }}
+          ECR_TRAIN_IMAGE: ${{ secrets.ECR_TRAIN_IMAGE }}:${{ github.sha }}
+          ECR_MONITOR_IMAGE: ${{ secrets.ECR_MONITOR_IMAGE }}:${{ github.sha }}
+          ECR_API_IMAGE: ${{ secrets.ECR_API_IMAGE }}:${{ github.sha }}
+        run: docker compose -f docker-compose.yml build
+
+      - name: Push images to ECR
+        env:
+          ECR_MLFLOW_IMAGE: ${{ secrets.ECR_MLFLOW_IMAGE }}:${{ github.sha }}
+          ECR_TRAIN_IMAGE: ${{ secrets.ECR_TRAIN_IMAGE }}:${{ github.sha }}
+          ECR_MONITOR_IMAGE: ${{ secrets.ECR_MONITOR_IMAGE }}:${{ github.sha }}
+          ECR_API_IMAGE: ${{ secrets.ECR_API_IMAGE }}:${{ github.sha }}
+        run: docker compose -f docker-compose.yml push
+
+      - name: Deploy on EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            set -e
+
+            aws ecr get-login-password --region ${{ secrets.AWS_REGION }} \
+              | docker login --username AWS --password-stdin $(echo ${{ secrets.ECR_API_IMAGE }} | cut -d/ -f1)
+
+            export ECR_MLFLOW_IMAGE=${{ secrets.ECR_MLFLOW_IMAGE }}:${{ github.sha }}
+            export ECR_TRAIN_IMAGE=${{ secrets.ECR_TRAIN_IMAGE }}:${{ github.sha }}
+            export ECR_MONITOR_IMAGE=${{ secrets.ECR_MONITOR_IMAGE }}:${{ github.sha }}
+            export ECR_API_IMAGE=${{ secrets.ECR_API_IMAGE }}:${{ github.sha }}
+
+            cd mlops-app
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d --remove-orphans
