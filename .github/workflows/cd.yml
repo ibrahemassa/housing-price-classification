@@ -1,0 +1,57 @@
+name: CD - Docker Compose MLOps Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Login to ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build & push images
+        run: |
+          TAG=${{ github.sha }}
+
+          docker build -f Dockerfile.mlflow  -t ${{ secrets.ECR_MLFLOW_IMAGE }}:$TAG .
+          docker push ${{ secrets.ECR_MLFLOW_IMAGE }}:$TAG
+
+          docker build -f Dockerfile.train   -t ${{ secrets.ECR_TRAIN_IMAGE }}:$TAG .
+          docker push ${{ secrets.ECR_TRAIN_IMAGE }}:$TAG
+
+          docker build -f Dockerfile.monitor -t ${{ secrets.ECR_MONITOR_IMAGE }}:$TAG .
+          docker push ${{ secrets.ECR_MONITOR_IMAGE }}:$TAG
+
+          docker build -f Dockerfile.api     -t ${{ secrets.ECR_API_IMAGE }}:$TAG .
+          docker push ${{ secrets.ECR_API_IMAGE }}:$TAG
+
+      - name: Deploy on EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            aws ecr get-login-password --region ${{ secrets.AWS_REGION }} \
+              | docker login --username AWS --password-stdin $(echo ${{ secrets.ECR_API_IMAGE }} | cut -d/ -f1)
+
+            export ECR_MLFLOW_IMAGE=${{ secrets.ECR_MLFLOW_IMAGE }}:${{ github.sha }}
+            export ECR_TRAIN_IMAGE=${{ secrets.ECR_TRAIN_IMAGE }}:${{ github.sha }}
+            export ECR_MONITOR_IMAGE=${{ secrets.ECR_MONITOR_IMAGE }}:${{ github.sha }}
+            export ECR_API_IMAGE=${{ secrets.ECR_API_IMAGE }}:${{ github.sha }}
+
+            cd mlops-app
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d

@@ -1,0 +1,92 @@
+services:
+  prefect-server:
+    image: prefecthq/prefect:3.6.8-python3.13
+    container_name: mlops-prefect
+    ports:
+      - "4200:4200"
+    command: prefect server start --host 0.0.0.0 --port 4200
+    env_file:
+      - .env
+    volumes:
+      - prefect-db:/root/.prefect
+    networks:
+      - mlops-network
+    restart: unless-stopped
+
+  mlflow-server:
+    image: ${ECR_MLFLOW_IMAGE}
+    container_name: mlops-mlflow
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    volumes:
+      - mlflow-db:/app/mlflow.db
+      - mlruns:/app/mlruns
+    networks:
+      - mlops-network
+    restart: unless-stopped
+
+  train:
+    image: ${ECR_TRAIN_IMAGE}
+    container_name: mlops-train
+    env_file:
+      - .env
+    volumes:
+      - data:/app/data
+      - models:/app/models
+      - mlflow-db:/app/mlflow.db
+      - mlruns:/app/mlruns
+    networks:
+      - mlops-network
+    depends_on:
+      - prefect-server
+      - mlflow-server
+    restart: "no"
+
+  monitor:
+    image: ${ECR_MONITOR_IMAGE}
+    container_name: mlops-monitor
+    env_file:
+      - .env
+    volumes:
+      - data:/app/data
+      - models:/app/models
+      - mlflow-db:/app/mlflow.db
+      - mlruns:/app/mlruns
+    networks:
+      - mlops-network
+    depends_on:
+      - prefect-server
+      - mlflow-server
+    restart: "no"
+
+  api:
+    image: ${ECR_API_IMAGE}
+    container_name: mlops-api
+    ports:
+      - "8081:8081"
+    env_file:
+      - .env
+    volumes:
+      - data:/app/data
+      - models:/app/models
+      - mlflow-db:/app/mlflow.db
+      - mlruns:/app/mlruns
+    networks:
+      - mlops-network
+    depends_on:
+      - mlflow-server
+    restart: unless-stopped
+
+volumes:
+  prefect-db:
+  mlflow-db:
+  mlruns:
+  models:
+  data:
+
+networks:
+  mlops-network:
+    driver: bridge
+
