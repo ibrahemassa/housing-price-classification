@@ -67,3 +67,5 @@ env/
 htmlcov/
 .coverage
 tests/TESTING_REPORT.md
+
+.env
