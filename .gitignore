@@ -69,3 +69,4 @@ htmlcov/
 tests/TESTING_REPORT.md
 
 .env
+.env.secret
