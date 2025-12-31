@@ -1395,9 +1395,7 @@ def show_alerts(ref_data, prod_inputs, prod_preds, mlflow_metrics):
     # Feature statistics alerts
     feature_stats = calculate_feature_statistics(ref_data, prod_inputs)
     if not feature_stats.empty:
-        drifted_features = feature_stats[
-            feature_stats.get("drift_detected", False)
-        ]
+        drifted_features = feature_stats[feature_stats.get("drift_detected", False)]
         if not drifted_features.empty:
             for _, row in drifted_features.iterrows():
                 alerts.append(

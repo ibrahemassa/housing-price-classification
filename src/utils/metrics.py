@@ -104,7 +104,9 @@ def calculate_class_distribution(y):
 def calculate_prediction_statistics(y_pred, y_proba=None):
     """Calculate statistics about predictions."""
     stats = {
-        "prediction_distribution": dict(zip(*np.unique(y_pred, return_counts=True), strict=False)),
+        "prediction_distribution": dict(
+            zip(*np.unique(y_pred, return_counts=True), strict=False)
+        ),
         "total_predictions": len(y_pred),
     }
 
