@@ -19,7 +19,13 @@ FALLBACK_MODEL_PATH = "fallback/model.pkl"
 FALLBACK_PREPROCESSOR_PATH = "fallback/preprocessor.pkl"
 FALLBACK_HASHER_PATH = "fallback/hasher.pkl"
 
-HIGH_CARD_CAT = ["address", "AdCreationDate", "Subscription"]
+HIGH_CARD_CAT = [
+    "address",
+    "AdCreationDate",
+    "Subscription",
+    "district_heating",
+    "district_floor",
+]
 
 LOW_CARD_CAT = ["district", "HeatingType", "StructureType", "FloorLocation"]
 
@@ -31,6 +37,19 @@ NUMERIC_FEATURES = [
 ]
 
 ALL_FEATURES = NUMERIC_FEATURES + LOW_CARD_CAT + HIGH_CARD_CAT
+
+
+def feature_cross(df: pd.DataFrame) -> pd.DataFrame:
+    """Create feature crosses for district+heating and district+floor."""
+    df = df.copy()
+    df["district_heating"] = (
+        df["district"].astype(str) + "_" + df["HeatingType"].astype(str)
+    )
+    df["district_floor"] = (
+        df["district"].astype(str) + "_" + df["FloorLocation"].astype(str)
+    )
+    return df
+
 
 CATEGORIES = {0: "low", 1: "medium", 2: "high"}
 
@@ -101,6 +120,9 @@ class HousingInput(BaseModel):
 
 def preprocess_input(data: dict):
     df = pd.DataFrame([data])
+
+    # Apply feature crosses (must match training preprocessing)
+    df = feature_cross(df)
 
     X_base = preprocessor.transform(df)
 
