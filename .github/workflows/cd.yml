@@ -23,23 +23,23 @@ jobs:
       - name: Login to Amazon ECR
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build images with Docker Compose
-        env:
-          ECR_MLFLOW_IMAGE: ${{ secrets.ECR_MLFLOW_IMAGE }}:${{ github.sha }}
-          ECR_TRAIN_IMAGE: ${{ secrets.ECR_TRAIN_IMAGE }}:${{ github.sha }}
-          ECR_MONITOR_IMAGE: ${{ secrets.ECR_MONITOR_IMAGE }}:${{ github.sha }}
-          ECR_API_IMAGE: ${{ secrets.ECR_API_IMAGE }}:${{ github.sha }}
-          ECR_DASHBOARD_IMAGE: ${{ secrets.ECR_DASHBOARD_IMAGE }}:${{ github.sha }}
-        run: docker compose -f docker-compose.yml build
-
-      - name: Push images to ECR
-        env:
-          ECR_MLFLOW_IMAGE: ${{ secrets.ECR_MLFLOW_IMAGE }}:${{ github.sha }}
-          ECR_TRAIN_IMAGE: ${{ secrets.ECR_TRAIN_IMAGE }}:${{ github.sha }}
-          ECR_MONITOR_IMAGE: ${{ secrets.ECR_MONITOR_IMAGE }}:${{ github.sha }}
-          ECR_API_IMAGE: ${{ secrets.ECR_API_IMAGE }}:${{ github.sha }}
-          ECR_DASHBOARD_IMAGE: ${{ secrets.ECR_DASHBOARD_IMAGE }}:${{ github.sha }}
-        run: docker compose -f docker-compose.yml push
+      # - name: Build images with Docker Compose
+      #   env:
+      #     ECR_MLFLOW_IMAGE: ${{ secrets.ECR_MLFLOW_IMAGE }}:${{ github.sha }}
+      #     ECR_TRAIN_IMAGE: ${{ secrets.ECR_TRAIN_IMAGE }}:${{ github.sha }}
+      #     ECR_MONITOR_IMAGE: ${{ secrets.ECR_MONITOR_IMAGE }}:${{ github.sha }}
+      #     ECR_API_IMAGE: ${{ secrets.ECR_API_IMAGE }}:${{ github.sha }}
+      #     ECR_DASHBOARD_IMAGE: ${{ secrets.ECR_DASHBOARD_IMAGE }}:${{ github.sha }}
+      #   run: docker compose -f docker-compose.yml build
+      #
+      # - name: Push images to ECR
+      #   env:
+      #     ECR_MLFLOW_IMAGE: ${{ secrets.ECR_MLFLOW_IMAGE }}:${{ github.sha }}
+      #     ECR_TRAIN_IMAGE: ${{ secrets.ECR_TRAIN_IMAGE }}:${{ github.sha }}
+      #     ECR_MONITOR_IMAGE: ${{ secrets.ECR_MONITOR_IMAGE }}:${{ github.sha }}
+      #     ECR_API_IMAGE: ${{ secrets.ECR_API_IMAGE }}:${{ github.sha }}
+      #     ECR_DASHBOARD_IMAGE: ${{ secrets.ECR_DASHBOARD_IMAGE }}:${{ github.sha }}
+      #   run: docker compose -f docker-compose.yml push
 
       - name: Deploy on EC2
         uses: appleboy/ssh-action@v1.0.3
