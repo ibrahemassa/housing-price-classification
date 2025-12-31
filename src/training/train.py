@@ -52,13 +52,30 @@ def get_class_weights(y):
     return dict(zip(classes, weights, strict=False))
 
 
-def load_checkpoint():
+def load_checkpoint(expected_n_features=None):
+    """Load checkpoint if it exists and is compatible with current data.
+    
+    Args:
+        expected_n_features: Number of features in current training data.
+                           If provided, validates checkpoint compatibility.
+    """
     checkpoint_path = f"{CHECKPOINT_DIR}/checkpoint.pkl"
     if os.path.exists(checkpoint_path):
         try:
             checkpoint = joblib.load(checkpoint_path)
             if isinstance(checkpoint, dict):
-                return checkpoint.get("model"), checkpoint.get("n_estimators", 0)
+                model = checkpoint.get("model")
+                n_estimators = checkpoint.get("n_estimators", 0)
+                
+                # Validate feature compatibility
+                if model is not None and expected_n_features is not None:
+                    model_n_features = getattr(model, "n_features_in_", None)
+                    if model_n_features is not None and model_n_features != expected_n_features:
+                        print(f"⚠️ Checkpoint incompatible: model expects {model_n_features} features, "
+                              f"but data has {expected_n_features} features. Training from scratch.")
+                        return None, 0
+                
+                return model, n_estimators
         except Exception:
             pass
     return None, 0
@@ -108,10 +125,13 @@ def train_baseline(X_train, X_test, y_train, y_test):
 def train_main_model(X_train, X_test, y_train, y_test, resume_from_checkpoint=True):
     class_weights = get_class_weights(y_train)
     sample_weights = compute_sample_weight(class_weight="balanced", y=y_train)
+    
+    # Get number of features for checkpoint validation
+    n_features = X_train.shape[1]
 
     with mlflow.start_run(run_name="main_model_random_forest"):
         model, start_estimators = (
-            load_checkpoint() if resume_from_checkpoint else (None, 0)
+            load_checkpoint(expected_n_features=n_features) if resume_from_checkpoint else (None, 0)
         )
 
         if model is None:
