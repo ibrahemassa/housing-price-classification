@@ -31,8 +31,9 @@ services:
     env_file:
       - .env
     volumes:
-      - mlflow-db:/app/mlflow.db
+      - mlflow-data:/app/mlflow-data
       - mlruns:/app/mlruns
+    command: ["mlflow", "server", "--host", "0.0.0.0", "--port", "5000", "--backend-store-uri", "sqlite:///mlflow-data/mlflow.db", "--default-artifact-root", "file:./mlruns", "--allowed-hosts", "*"]
     networks:
       - mlops-network
     healthcheck:
@@ -51,7 +52,7 @@ services:
     volumes:
       - data:/app/data
       - models:/app/models
-      - mlflow-db:/app/mlflow.db
+      - mlflow-data:/app/mlflow-data
       - mlruns:/app/mlruns
     networks:
       - mlops-network
@@ -71,7 +72,7 @@ services:
     volumes:
       - data:/app/data
       - models:/app/models
-      - mlflow-db:/app/mlflow.db
+      - mlflow-data:/app/mlflow-data
       - mlruns:/app/mlruns
     networks:
       - mlops-network
@@ -92,7 +93,7 @@ services:
     volumes:
       - data:/app/data
       - models:/app/models
-      - mlflow-db:/app/mlflow.db
+      - mlflow-data:/app/mlflow-data
       - mlruns:/app/mlruns
     networks:
       - mlops-network
@@ -111,7 +112,7 @@ services:
     volumes:
       - data:/app/data
       - models:/app/models
-      - mlflow-db:/app/mlflow.db
+      - mlflow-data:/app/mlflow-data
       - mlruns:/app/mlruns
     networks:
       - mlops-network
@@ -122,7 +123,7 @@ services:
 
 volumes:
   prefect-db:
-  mlflow-db:
+  mlflow-data:
   mlruns:
   models:
   data:
