@@ -1,3 +1,5 @@
+import os
+
 import joblib
 import pandas as pd
 from fastapi import FastAPI
@@ -7,9 +9,15 @@ from scipy.sparse import hstack
 from src.utils.model_loader import load_model
 from src.utils.production_logger import log_input, log_prediction
 
+# Primary paths (from volume mounts)
 MODEL_PATH = "models/model.pkl"
 PREPROCESSOR_PATH = "data/processed/preprocessor.pkl"
 HASHER_PATH = "data/processed/hasher.pkl"
+
+# Fallback paths (baked into Docker image)
+FALLBACK_MODEL_PATH = "fallback/model.pkl"
+FALLBACK_PREPROCESSOR_PATH = "fallback/preprocessor.pkl"
+FALLBACK_HASHER_PATH = "fallback/hasher.pkl"
 
 HIGH_CARD_CAT = ["address", "AdCreationDate", "Subscription"]
 
@@ -41,8 +49,31 @@ def get_model():
     return model
 
 
-preprocessor = joblib.load(PREPROCESSOR_PATH)
-hasher = joblib.load(HASHER_PATH)
+def load_preprocessor_and_hasher():
+    """Load preprocessor and hasher, preferring primary paths, falling back to baked-in files."""
+    # Check if primary files exist
+    if os.path.exists(PREPROCESSOR_PATH) and os.path.exists(HASHER_PATH):
+        try:
+            prep = joblib.load(PREPROCESSOR_PATH)
+            hash_ = joblib.load(HASHER_PATH)
+            print(f"Loaded preprocessor from {PREPROCESSOR_PATH}")
+            print(f"Loaded hasher from {HASHER_PATH}")
+            return prep, hash_
+        except Exception as e:
+            print(f"Failed to load from primary paths: {e}")
+
+    # Fallback to baked-in files
+    if os.path.exists(FALLBACK_PREPROCESSOR_PATH) and os.path.exists(FALLBACK_HASHER_PATH):
+        prep = joblib.load(FALLBACK_PREPROCESSOR_PATH)
+        hash_ = joblib.load(FALLBACK_HASHER_PATH)
+        print(f"Loaded preprocessor from {FALLBACK_PREPROCESSOR_PATH}")
+        print(f"Loaded hasher from {FALLBACK_HASHER_PATH}")
+        return prep, hash_
+
+    raise RuntimeError("Could not load preprocessor and hasher from any location")
+
+
+preprocessor, hasher = load_preprocessor_and_hasher()
 
 app = FastAPI(
     title="Housing Price Category API",

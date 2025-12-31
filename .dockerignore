@@ -8,7 +8,10 @@ __pycache__/
 .git
 .gitignore
 mlruns/
-data/
+data/raw/
+data/reference/
+data/production/
+data/monitoring/
 models/checkpoints/
 htmlcov/
 .pytest_cache/

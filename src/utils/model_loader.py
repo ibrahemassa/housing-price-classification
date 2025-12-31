@@ -8,6 +8,7 @@ from mlflow.tracking import MlflowClient
 
 MODEL_NAME = "HousingPriceClassifier"
 LOCAL_MODEL_PATH = "models/model.pkl"
+FALLBACK_MODEL_PATH = "fallback/model.pkl"
 MLRUNS_DIR = "mlruns"
 
 mlflow_uri = os.getenv("MLFLOW_TRACKING_URI", "sqlite:///mlflow.db")
@@ -102,6 +103,18 @@ def load_model(alias="production"):
             errors.append(f"Local model file: {str(e)}")
     else:
         errors.append(f"Local model file not found: {LOCAL_MODEL_PATH}")
+
+    # Try 4: Fall back to baked-in fallback model (Docker image)
+    print(f"Falling back to fallback model file: {FALLBACK_MODEL_PATH}")
+    if os.path.exists(FALLBACK_MODEL_PATH):
+        try:
+            model = joblib.load(FALLBACK_MODEL_PATH)
+            print(f"Successfully loaded model from {FALLBACK_MODEL_PATH}")
+            return model
+        except Exception as e:
+            errors.append(f"Fallback model file: {str(e)}")
+    else:
+        errors.append(f"Fallback model file not found: {FALLBACK_MODEL_PATH}")
 
     # All attempts failed - provide helpful error message
     error_details = "\n  - ".join(errors)
