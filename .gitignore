@@ -68,5 +68,5 @@ htmlcov/
 .coverage
 tests/TESTING_REPORT.md
 
-.env
 .env.secret
+mlflow.db
