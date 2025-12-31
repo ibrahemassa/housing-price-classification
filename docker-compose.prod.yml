@@ -48,9 +48,6 @@ services:
     container_name: mlops-train
     env_file:
       - .env
-    environment:
-      # Enable low memory mode for small EC2 instances (skips SMOTE)
-      - LOW_MEMORY_MODE=${LOW_MEMORY_MODE:-true}
     volumes:
       - data:/app/data
       - models:/app/models
@@ -71,8 +68,6 @@ services:
     container_name: mlops-monitor
     env_file:
       - .env
-    environment:
-      - LOW_MEMORY_MODE=${LOW_MEMORY_MODE:-true}
     volumes:
       - data:/app/data
       - models:/app/models

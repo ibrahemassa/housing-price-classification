@@ -180,8 +180,6 @@ def build_preprocessor():
         remainder="drop",
     )
 
-    # Using 2**14 (16384) features - must match existing trained models
-    # Memory savings come from LOW_MEMORY_MODE which skips SMOTE instead
     hasher = FeatureHasher(n_features=2**14, input_type="string")
 
     return preprocessor, hasher
@@ -226,35 +224,23 @@ def preprocess_and_split():
     X_train_final = hstack([X_train_base, X_train_hash])
     X_test_final = hstack([X_test_base, X_test_hash])
 
-    # Check if we have enough memory for SMOTE (skip on low-memory systems)
-    low_memory_mode = os.getenv("LOW_MEMORY_MODE", "false").lower() == "true"
-    
-    if low_memory_mode:
-        print("LOW_MEMORY_MODE enabled: Skipping SMOTE to conserve memory")
-        # Keep sparse format, skip resampling
-        pass
+    class_counts = Counter(y_train)
+    max_samples = max(class_counts.values())
+    sampling_strategy = {cls: min(count * 2, max_samples) for cls, count in class_counts.items()}
+
+    X_train_dense = (
+        X_train_final.toarray() if hasattr(X_train_final, "toarray") else X_train_final
+    )
+    smote = SMOTE(random_state=RANDOM_STATE, sampling_strategy=sampling_strategy)
+    X_train_resampled, y_train = smote.fit_resample(X_train_dense, y_train)
+
+    from scipy.sparse import csr_matrix
+    X_train_sparse = csr_matrix(X_train_resampled)
+    sparsity = 1.0 - (X_train_sparse.nnz / (X_train_sparse.shape[0] * X_train_sparse.shape[1]))
+    if sparsity > 0.5:
+        X_train_final = X_train_sparse
     else:
-        try:
-            class_counts = Counter(y_train)
-            max_samples = max(class_counts.values())
-            sampling_strategy = {cls: min(count * 2, max_samples) for cls, count in class_counts.items()}
-
-            X_train_dense = (
-                X_train_final.toarray() if hasattr(X_train_final, "toarray") else X_train_final
-            )
-            smote = SMOTE(random_state=RANDOM_STATE, sampling_strategy=sampling_strategy)
-            X_train_resampled, y_train = smote.fit_resample(X_train_dense, y_train)
-
-            from scipy.sparse import csr_matrix
-            X_train_sparse = csr_matrix(X_train_resampled)
-            sparsity = 1.0 - (X_train_sparse.nnz / (X_train_sparse.shape[0] * X_train_sparse.shape[1]))
-            if sparsity > 0.5:
-                X_train_final = X_train_sparse
-            else:
-                X_train_final = X_train_resampled
-        except MemoryError:
-            print("MemoryError during SMOTE: Skipping resampling to conserve memory")
-            pass
+        X_train_final = X_train_resampled
 
     os.makedirs(PROCESSED_DIR, exist_ok=True)
 
