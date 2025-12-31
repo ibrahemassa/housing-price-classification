@@ -53,3 +53,23 @@ jobs:
 
             # Show status
             sudo docker compose ps
+
+      - name: Notify for success
+        uses: umahmood/pushover-actions@main
+        if: ${{ success() }}
+        env:
+          PUSHOVER_TOKEN: ${{ secrets.PUSHOVER_APP_TOKEN }}
+          PUSHOVER_USER: ${{ secrets.PUSHOVER_USER_KEY }}
+        with:
+          status: ${{ job.status }}
+          title: '✅ ${{ github.repository }} Deployed to EC2'
+
+      - name: Notify for failure
+        uses: umahmood/pushover-actions@main
+        if: ${{ failure() }}
+        env:
+          PUSHOVER_TOKEN: ${{ secrets.PUSHOVER_APP_TOKEN }}
+          PUSHOVER_USER: ${{ secrets.PUSHOVER_USER_KEY }}
+        with:
+          status: ${{ job.status }}
+          title: '⛔ ${{ github.repository }} Failed to deploy to EC2'
