@@ -23,7 +23,9 @@ services:
     restart: unless-stopped
 
   mlflow-server:
-    image: ${ECR_MLFLOW_IMAGE}
+    build:
+      context: .
+      dockerfile: Dockerfile.mlflow
     container_name: mlops-mlflow
     working_dir: /app
     ports:

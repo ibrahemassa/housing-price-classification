@@ -70,3 +70,6 @@ tests/TESTING_REPORT.md
 
 .env.secret
 mlflow.db
+
+# Report files
+report_files/
