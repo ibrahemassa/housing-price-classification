@@ -92,20 +92,8 @@ def load_model(alias="production"):
                 "The model.pkl file may not have been committed to the repository."
             )
 
-    # Try 3: Fall back to local model file
-    print(f"Falling back to local model file: {LOCAL_MODEL_PATH}")
-    if os.path.exists(LOCAL_MODEL_PATH):
-        try:
-            model = joblib.load(LOCAL_MODEL_PATH)
-            print(f"Successfully loaded model from {LOCAL_MODEL_PATH}")
-            return model
-        except Exception as e:
-            errors.append(f"Local model file: {str(e)}")
-    else:
-        errors.append(f"Local model file not found: {LOCAL_MODEL_PATH}")
-
-    # Try 4: Fall back to baked-in fallback model (Docker image)
-    print(f"Falling back to fallback model file: {FALLBACK_MODEL_PATH}")
+    # Try 3: Fall back to baked-in fallback model (Docker image) - preferred for consistency
+    print(f"Trying fallback model file: {FALLBACK_MODEL_PATH}")
     if os.path.exists(FALLBACK_MODEL_PATH):
         try:
             model = joblib.load(FALLBACK_MODEL_PATH)
@@ -115,6 +103,18 @@ def load_model(alias="production"):
             errors.append(f"Fallback model file: {str(e)}")
     else:
         errors.append(f"Fallback model file not found: {FALLBACK_MODEL_PATH}")
+
+    # Try 4: Fall back to volume-mounted local model file
+    print(f"Trying local model file: {LOCAL_MODEL_PATH}")
+    if os.path.exists(LOCAL_MODEL_PATH):
+        try:
+            model = joblib.load(LOCAL_MODEL_PATH)
+            print(f"Successfully loaded model from {LOCAL_MODEL_PATH}")
+            return model
+        except Exception as e:
+            errors.append(f"Local model file: {str(e)}")
+    else:
+        errors.append(f"Local model file not found: {LOCAL_MODEL_PATH}")
 
     # All attempts failed - provide helpful error message
     error_details = "\n  - ".join(errors)

@@ -180,8 +180,9 @@ def build_preprocessor():
         remainder="drop",
     )
 
-    # Reduced from 2**14 (16384) to 2**10 (1024) to save memory on small instances
-    hasher = FeatureHasher(n_features=2**10, input_type="string")
+    # Using 2**14 (16384) features - must match existing trained models
+    # Memory savings come from LOW_MEMORY_MODE which skips SMOTE instead
+    hasher = FeatureHasher(n_features=2**14, input_type="string")
 
     return preprocessor, hasher
 

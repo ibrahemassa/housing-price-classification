@@ -50,8 +50,19 @@ def get_model():
 
 
 def load_preprocessor_and_hasher():
-    """Load preprocessor and hasher, preferring primary paths, falling back to baked-in files."""
-    # Check if primary files exist
+    """Load preprocessor and hasher. Prefers fallback files (baked into image) for consistency."""
+    # Prefer fallback files first - they're guaranteed to be consistent with the fallback model
+    if os.path.exists(FALLBACK_PREPROCESSOR_PATH) and os.path.exists(FALLBACK_HASHER_PATH):
+        try:
+            prep = joblib.load(FALLBACK_PREPROCESSOR_PATH)
+            hash_ = joblib.load(FALLBACK_HASHER_PATH)
+            print(f"Loaded preprocessor from {FALLBACK_PREPROCESSOR_PATH}")
+            print(f"Loaded hasher from {FALLBACK_HASHER_PATH}")
+            return prep, hash_
+        except Exception as e:
+            print(f"Failed to load from fallback paths: {e}")
+
+    # Fall back to volume-mounted files
     if os.path.exists(PREPROCESSOR_PATH) and os.path.exists(HASHER_PATH):
         try:
             prep = joblib.load(PREPROCESSOR_PATH)
@@ -61,14 +72,6 @@ def load_preprocessor_and_hasher():
             return prep, hash_
         except Exception as e:
             print(f"Failed to load from primary paths: {e}")
-
-    # Fallback to baked-in files
-    if os.path.exists(FALLBACK_PREPROCESSOR_PATH) and os.path.exists(FALLBACK_HASHER_PATH):
-        prep = joblib.load(FALLBACK_PREPROCESSOR_PATH)
-        hash_ = joblib.load(FALLBACK_HASHER_PATH)
-        print(f"Loaded preprocessor from {FALLBACK_PREPROCESSOR_PATH}")
-        print(f"Loaded hasher from {FALLBACK_HASHER_PATH}")
-        return prep, hash_
 
     raise RuntimeError("Could not load preprocessor and hasher from any location")
 
