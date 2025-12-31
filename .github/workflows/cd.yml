@@ -13,40 +13,16 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: Login to Amazon ECR
-        uses: aws-actions/amazon-ecr-login@v2
-
-      - name: Build images with Docker Compose
-        env:
-          ECR_TRAIN_IMAGE: ${{ secrets.ECR_TRAIN_IMAGE }}:${{ github.sha }}
-          ECR_MONITOR_IMAGE: ${{ secrets.ECR_MONITOR_IMAGE }}:${{ github.sha }}
-          ECR_API_IMAGE: ${{ secrets.ECR_API_IMAGE }}:${{ github.sha }}
-          ECR_DASHBOARD_IMAGE: ${{ secrets.ECR_DASHBOARD_IMAGE }}:${{ github.sha }}
-        run: docker compose -f docker-compose.yml build train monitor api dashboard
-
-      - name: Push images to ECR
-        env:
-          ECR_TRAIN_IMAGE: ${{ secrets.ECR_TRAIN_IMAGE }}:${{ github.sha }}
-          ECR_MONITOR_IMAGE: ${{ secrets.ECR_MONITOR_IMAGE }}:${{ github.sha }}
-          ECR_API_IMAGE: ${{ secrets.ECR_API_IMAGE }}:${{ github.sha }}
-          ECR_DASHBOARD_IMAGE: ${{ secrets.ECR_DASHBOARD_IMAGE }}:${{ github.sha }}
-        run: docker compose -f docker-compose.yml push train monitor api dashboard
-
-      - name: Copy files to EC2
+      - name: Copy project files to EC2
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: "docker-compose.prod.yml,Dockerfile.mlflow"
+          source: "docker-compose.yml,Dockerfile.*,requirements.txt,pyproject.toml,src/,data/raw/"
           target: "mlops-app/"
+          overwrite: true
+          strip_components: 0
 
       - name: Deploy on EC2
         uses: appleboy/ssh-action@v1.0.3
@@ -56,15 +32,24 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             set -e
-
-            aws ecr get-login-password --region ${{ secrets.AWS_REGION }} \
-              | sudo docker login --username AWS --password-stdin $(echo ${{ secrets.ECR_API_IMAGE }} | cut -d/ -f1)
-
-            export ECR_TRAIN_IMAGE=${{ secrets.ECR_TRAIN_IMAGE }}:${{ github.sha }}
-            export ECR_MONITOR_IMAGE=${{ secrets.ECR_MONITOR_IMAGE }}:${{ github.sha }}
-            export ECR_API_IMAGE=${{ secrets.ECR_API_IMAGE }}:${{ github.sha }}
-            export ECR_DASHBOARD_IMAGE=${{ secrets.ECR_DASHBOARD_IMAGE }}:${{ github.sha }}
-
             cd mlops-app
-            sudo -E docker compose -f docker-compose.prod.yml pull
-            sudo -E docker compose -f docker-compose.prod.yml up -d --build --remove-orphans
+
+            # Stop existing containers
+            sudo docker compose down || true
+
+            # Create required files/directories (prevents Docker from creating directories)
+            touch mlflow.db
+            mkdir -p mlruns data models data/raw data/processed data/reference data/production
+
+            # Create .env if it doesn't exist
+            if [ ! -f .env ]; then
+              echo "MLFLOW_TRACKING_URI=http://mlflow-server:5000" > .env
+              echo "PREFECT_API_URL=http://prefect-server:4200/api" >> .env
+            fi
+
+            # Build and start all services
+            sudo docker compose build
+            sudo docker compose up -d --remove-orphans
+
+            # Show status
+            sudo docker compose ps

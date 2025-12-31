@@ -20,7 +20,6 @@ services:
     restart: unless-stopped
 
   mlflow-server:
-    image: ${ECR_MLFLOW_IMAGE}
     build:
       context: .
       dockerfile: Dockerfile.mlflow
@@ -49,7 +48,6 @@ services:
     restart: unless-stopped
 
   train:
-    image: ${ECR_TRAIN_IMAGE}
     build:
       context: .
       dockerfile: Dockerfile.train
@@ -72,7 +70,6 @@ services:
     # command: python -m src.utils.pipelines
 
   monitor:
-    image: ${ECR_MONITOR_IMAGE}
     build:
       context: .
       dockerfile: Dockerfile.monitor
@@ -96,7 +93,6 @@ services:
     restart: "no"
 
   api:
-    image: ${ECR_API_IMAGE}
     build:
       context: .
       dockerfile: Dockerfile.api
@@ -118,7 +114,6 @@ services:
     restart: "no"
 
   dashboard:
-    image: ${ECR_DASHBOARD_IMAGE}
     build:
       context: .
       dockerfile: Dockerfile.dashboard
