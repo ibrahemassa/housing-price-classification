@@ -26,3 +26,13 @@ python src/pipelines.py
 ```bash
 python src/monitor_flow.py
 ```
+### 6. Run Monitoring Dashboard
+```bash
+python run_dashboard.py
+```
+Or directly with Streamlit:
+```bash
+streamlit run src/monitoring/dashboard.py --server.port=8501
+```
+
+The dashboard will be available at `http://localhost:8501`

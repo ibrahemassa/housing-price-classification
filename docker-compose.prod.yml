@@ -3,7 +3,7 @@ services:
     image: prefecthq/prefect:3.6.8-python3.13
     container_name: mlops-prefect
     ports:
-      - "4200:4200"
+      - "${PREFECT_PORT:-4200}:4200"
     command: prefect server start --host 0.0.0.0 --port 4200
     env_file:
       - .env
@@ -11,13 +11,19 @@ services:
       - prefect-db:/root/.prefect
     networks:
       - mlops-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:4200/api/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     restart: unless-stopped
 
   mlflow-server:
     image: ${ECR_MLFLOW_IMAGE}
     container_name: mlops-mlflow
     ports:
-      - "5000:5000"
+      - "${MLFLOW_PORT:-5000}:5000"
     env_file:
       - .env
     volumes:
@@ -25,6 +31,12 @@ services:
       - mlruns:/app/mlruns
     networks:
       - mlops-network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
     restart: unless-stopped
 
   train:
@@ -40,9 +52,12 @@ services:
     networks:
       - mlops-network
     depends_on:
-      - prefect-server
-      - mlflow-server
+      prefect-server:
+        condition: service_healthy
+      mlflow-server:
+        condition: service_healthy
     restart: "no"
+    # command: python -m src.utils.pipelines
 
   monitor:
     image: ${ECR_MONITOR_IMAGE}
@@ -57,15 +72,19 @@ services:
     networks:
       - mlops-network
     depends_on:
-      - prefect-server
-      - mlflow-server
+      prefect-server:
+        condition: service_healthy
+      mlflow-server:
+        condition: service_healthy
+      train:
+        condition: service_started
     restart: "no"
 
   api:
     image: ${ECR_API_IMAGE}
     container_name: mlops-api
     ports:
-      - "8081:8081"
+      - "${API_PORT:-8081}:8081"
     env_file:
       - .env
     volumes:
@@ -76,7 +95,27 @@ services:
     networks:
       - mlops-network
     depends_on:
-      - mlflow-server
+      mlflow-server:
+        condition: service_healthy
+    restart: unless-stopped
+
+  dashboard:
+    image: ${ECR_DASHBOARD_IMAGE}
+    container_name: mlops-dashboard
+    ports:
+      - "${DASHBOARD_PORT:-8501}:8501"
+    env_file:
+      - .env
+    volumes:
+      - data:/app/data
+      - models:/app/models
+      - mlflow-db:/app/mlflow.db
+      - mlruns:/app/mlruns
+    networks:
+      - mlops-network
+    depends_on:
+      mlflow-server:
+        condition: service_healthy
     restart: unless-stopped
 
 volumes:

@@ -1,4 +1,10 @@
 import os
+import sys
+from pathlib import Path
+
+project_root = Path(__file__).parent.parent.parent
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 import joblib
 import mlflow
@@ -12,6 +18,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import accuracy_score, f1_score
 from sklearn.utils.class_weight import compute_class_weight, compute_sample_weight
 
+from src.utils.metrics import calculate_comprehensive_metrics
+
 PROCESSED_DIR = "./data/processed"
 MODEL_DIR = "models"
 MODEL_NAME = "HousingPriceClassifier"
@@ -22,7 +30,6 @@ TEST_PATH = f"{PROCESSED_DIR}/test.pkl"
 
 RANDOM_STATE = 42
 
-# Use MLflow server if available, otherwise fall back to local SQLite
 mlflow_uri = os.getenv("MLFLOW_TRACKING_URI", "sqlite:///mlflow.db")
 mlflow.set_tracking_uri(mlflow_uri)
 mlflow.set_experiment("housing-price-classification")
@@ -49,15 +56,22 @@ def train_baseline(X_train, X_test, y_train, y_test):
 
         model.fit(X_train, y_train, sample_weight=sample_weights)
         preds = model.predict(X_test)
+        
+        y_proba = model.predict_proba(X_test) if hasattr(model, "predict_proba") else None
 
-        acc = accuracy_score(y_test, preds)
-        f1 = f1_score(y_test, preds, average="macro")
+        metrics = calculate_comprehensive_metrics(
+            y_test, preds, y_proba, labels=["low", "medium", "high"]
+        )
 
         mlflow.log_param("model", "LogisticRegression")
-        mlflow.log_metric("accuracy", acc)
-        mlflow.log_metric("macro_f1", f1)
+        
+        for metric_name, metric_value in metrics.items():
+            if isinstance(metric_value, (int, float)) and not isinstance(metric_value, bool):
+                mlflow.log_metric(metric_name, metric_value)
 
-        print(f"[Baseline] Accuracy: {acc:.4f} | Macro-F1: {f1:.4f}")
+        acc = metrics["accuracy"]
+        f1 = metrics["macro_f1"]
+        print(f"[Baseline] Accuracy: {acc:.4f} | Macro-F1: {f1:.4f} | Precision: {metrics['macro_precision']:.4f} | Recall: {metrics['macro_recall']:.4f}")
 
     return acc, f1
 
@@ -92,9 +106,12 @@ def train_main_model(X_train, X_test, y_train, y_test):
         model.fit(X_train, y_train, sample_weight=sample_weights)
         # model._estimator_type = "classifier"
         preds = model.predict(X_test)
+        
+        y_proba = model.predict_proba(X_test) if hasattr(model, "predict_proba") else None
 
-        acc = accuracy_score(y_test, preds)
-        f1 = f1_score(y_test, preds, average="macro")
+        metrics = calculate_comprehensive_metrics(
+            y_test, preds, y_proba, labels=["low", "medium", "high"]
+        )
 
         mlflow.log_param("model", "RandomForestClassifier")
         mlflow.log_param("model_type", "RandomForest")
@@ -103,8 +120,13 @@ def train_main_model(X_train, X_test, y_train, y_test):
         mlflow.log_param("iterations", 300)
         mlflow.log_param("depth", 6)
         mlflow.log_param("learning_rate", 0.1)
-        mlflow.log_metric("accuracy", acc)
-        mlflow.log_metric("macro_f1", f1)
+        
+        for metric_name, metric_value in metrics.items():
+            if isinstance(metric_value, (int, float)) and not isinstance(metric_value, bool):
+                mlflow.log_metric(metric_name, metric_value)
+        
+        acc = metrics["accuracy"]
+        f1 = metrics["macro_f1"]
 
         os.makedirs(MODEL_DIR, exist_ok=True)
         model_path = f"{MODEL_DIR}/model.pkl"
@@ -120,7 +142,9 @@ def train_main_model(X_train, X_test, y_train, y_test):
         #     registered_model_name=MODEL_NAME
         # )
 
-        print(f"[RandomForest] Accuracy: {acc:.4f} | Macro-F1: {f1:.4f}")
+        print(f"[RandomForest] Accuracy: {acc:.4f} | Macro-F1: {f1:.4f} | Precision: {metrics['macro_precision']:.4f} | Recall: {metrics['macro_recall']:.4f}")
+        if "roc_auc_macro" in metrics:
+            print(f"ROC-AUC (macro): {metrics['roc_auc_macro']:.4f}")
         print(f"Model saved to {model_path}")
 
     return acc, f1

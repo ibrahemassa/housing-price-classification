@@ -7,7 +7,6 @@ import mlflow.sklearn
 MODEL_NAME = "HousingPriceClassifier"
 LOCAL_MODEL_PATH = "models/model.pkl"
 
-# Use MLflow server if available, otherwise fall back to local SQLite
 mlflow_uri = os.getenv("MLFLOW_TRACKING_URI", "sqlite:///mlflow.db")
 mlflow.set_tracking_uri(mlflow_uri)
 
@@ -20,12 +19,9 @@ def load_model(alias="production"):
     model_uri = f"models:/{MODEL_NAME}@{alias}"
 
     try:
-        # Try to load from MLflow registry
         model = mlflow.sklearn.load_model(model_uri)
         return model
     except Exception as e:
-        # If MLflow loading fails (e.g., due to path issues in Docker),
-        # fall back to loading the local model file
         error_msg = str(e)
         error_type = type(e).__name__
 

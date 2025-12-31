@@ -16,3 +16,6 @@ mypy
 pytest
 pre-commit
 bandit
+streamlit
+plotly
+scipy

@@ -1,0 +1,26 @@
+FROM python:3.13-slim
+
+WORKDIR /app
+
+RUN apt-get update && apt-get install -y \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY src/ ./src/
+COPY pyproject.toml .
+COPY run_dashboard.py .
+
+ENV PYTHONPATH=/app
+ENV MLFLOW_TRACKING_URI=http://mlflow-server:5000
+ENV GIT_PYTHON_REFRESH=quiet
+
+EXPOSE 8501
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD python -c "import socket; s=socket.socket(); s.connect(('localhost', 8501)); s.close()" || exit 1
+
+CMD ["streamlit", "run", "src/monitoring/dashboard.py", "--server.port=8501", "--server.address=0.0.0.0"]
+

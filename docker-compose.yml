@@ -1,5 +1,4 @@
 services:
-  # Prefect server for flow orchestration
   prefect-server:
     image: prefecthq/prefect:3.6.8-python3.13
     container_name: mlops-prefect
@@ -20,7 +19,6 @@ services:
       start_period: 10s
     restart: unless-stopped
 
-  # MLflow server for model tracking UI
   mlflow-server:
     image: ${ECR_MLFLOW_IMAGE}
     build:
@@ -50,7 +48,6 @@ services:
       start_period: 10s
     restart: unless-stopped
 
-  # Training service - runs Prefect training pipeline
   train:
     image: ${ECR_TRAIN_IMAGE}
     build:
@@ -58,13 +55,9 @@ services:
       dockerfile: Dockerfile.train
     container_name: mlops-train
     volumes:
-      # Mount data directory for input/output
       - ./data:/app/data
-      # Mount models directory for saving trained models
       - ./models:/app/models
-      # Mount MLflow database for tracking
       - ./mlflow.db:/app/mlflow.db
-      # Mount MLruns for MLflow artifacts
       - ./mlruns:/app/mlruns
     env_file:
       - .env
@@ -76,10 +69,8 @@ services:
       mlflow-server:
         condition: service_healthy
     restart: no
-    # Uncomment to run training on startup
     # command: python -m src.utils.pipelines
 
-  # Monitoring service - runs Prefect monitoring flow and can trigger training
   monitor:
     image: ${ECR_MONITOR_IMAGE}
     build:
@@ -87,13 +78,9 @@ services:
       dockerfile: Dockerfile.monitor
     container_name: mlops-monitor
     volumes:
-      # Mount data directory for monitoring data
       - ./data:/app/data
-      # Mount models directory (in case monitoring needs to check models)
       - ./models:/app/models
-      # Mount MLflow database for tracking
       - ./mlflow.db:/app/mlflow.db
-      # Mount MLruns for MLflow artifacts
       - ./mlruns:/app/mlruns
     env_file:
       - .env
@@ -106,11 +93,8 @@ services:
         condition: service_healthy
       train:
         condition: service_started
-    # Monitoring can trigger training by calling the pipeline script
-    # The monitoring flow will run the training pipeline when drift is detected
     restart: no
 
-  # API service - serves predictions
   api:
     image: ${ECR_API_IMAGE}
     build:
@@ -120,13 +104,9 @@ services:
     ports:
       - "${API_PORT:-8081}:8081"
     volumes:
-      # Mount data directory for preprocessors
       - ./data:/app/data
-      # Mount models directory for loading models
       - ./models:/app/models
-      # Mount MLflow database for model registry
       - ./mlflow.db:/app/mlflow.db
-      # Mount MLruns for MLflow artifacts
       - ./mlruns:/app/mlruns
     env_file:
       - .env
@@ -136,6 +116,28 @@ services:
       mlflow-server:
         condition: service_healthy
     restart: no
+
+  dashboard:
+    image: ${ECR_DASHBOARD_IMAGE}
+    build:
+      context: .
+      dockerfile: Dockerfile.dashboard
+    container_name: mlops-dashboard
+    ports:
+      - "${DASHBOARD_PORT:-8501}:8501"
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./mlflow.db:/app/mlflow.db
+      - ./mlruns:/app/mlruns
+    env_file:
+      - .env
+    networks:
+      - mlops-network
+    depends_on:
+      mlflow-server:
+        condition: service_healthy
+    restart: unless-stopped
 
 volumes:
   prefect-db:
