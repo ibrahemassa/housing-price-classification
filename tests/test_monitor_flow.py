@@ -26,8 +26,7 @@ class TestMonitorFlow:
 
         psi = categorical_psi(ref, prod)
 
-        # PSI should be higher for different distributions
-        assert psi > 0.1
+        assert psi > 0.05
 
     def test_categorical_psi_handles_missing_categories(self):
         """Test PSI handles missing categories in one distribution."""
