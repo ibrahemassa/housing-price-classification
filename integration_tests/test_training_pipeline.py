@@ -76,10 +76,32 @@ class TestTrainingPipeline:
         )
 
     @patch("src.training.train.mlflow.start_run")
+    @patch("src.training.train.mlflow.log_param")
+    @patch("src.training.train.mlflow.log_metric")
+    @patch("src.training.train.mlflow.sklearn.log_model")
+    @patch("src.training.train.mlflow.log_artifact")
+    @patch("src.training.train.mlflow.set_tracking_uri")
+    @patch("src.training.train.mlflow.set_experiment")
+    @patch("src.training.train.calculate_comprehensive_metrics")
     @patch("src.training.train.joblib.load")
     @patch("src.training.train.joblib.dump")
+    @patch("src.training.train.os.path.exists")
+    @patch("src.training.train.RandomForestClassifier")
     def test_train_saves_model(
-        self, mock_dump, mock_load, mock_mlflow, temp_project_dir
+        self,
+        mock_rf,
+        mock_exists,
+        mock_dump,
+        mock_load,
+        mock_metrics,
+        mock_set_experiment,
+        mock_set_tracking_uri,
+        mock_log_artifact,
+        mock_log_model,
+        mock_log_metric,
+        mock_log_param,
+        mock_mlflow,
+        temp_project_dir,
     ):
         """Test that training saves the model."""
         if os.getenv("CI") == "true":
@@ -87,6 +109,7 @@ class TestTrainingPipeline:
 
         import numpy as np
         from scipy.sparse import csr_matrix
+        from sklearn.ensemble import RandomForestClassifier
 
         from src.training.train import train_main_model
 
@@ -98,6 +121,27 @@ class TestTrainingPipeline:
 
         mock_load.side_effect = [(X_train, y_train), (X_test, y_test)]
 
+        def create_rf(*args, **kwargs):
+            kwargs["n_jobs"] = 1
+            model = RandomForestClassifier(*args, **kwargs)
+            return model
+
+        mock_rf.side_effect = create_rf
+
+        def exists_side_effect(path):
+            if "/databricks/" in path or "DBR_VERSION" in path:
+                return False
+            return "checkpoint.pkl" not in path
+
+        mock_exists.side_effect = exists_side_effect
+
+        mock_metrics.return_value = {
+            "accuracy": 0.90,
+            "macro_f1": 0.88,
+            "macro_precision": 0.87,
+            "macro_recall": 0.86,
+        }
+
         mock_run = MagicMock()
         mock_mlflow.return_value.__enter__ = MagicMock(return_value=mock_run)
         mock_mlflow.return_value.__exit__ = MagicMock(return_value=None)
@@ -106,9 +150,9 @@ class TestTrainingPipeline:
             train_main_model(X_train, X_test, y_train, y_test)
 
         # Verify model was saved
-        mock_dump.assert_called()
-        dump_path = str(mock_dump.call_args[0][1])
-        assert "model.pkl" in dump_path
+        assert mock_dump.call_count >= 1
+        dump_calls = [str(call[0][1]) for call in mock_dump.call_args_list]
+        assert any("model.pkl" in path for path in dump_calls)
 
     @patch("src.training.register_model.client")
     def test_register_model_sets_aliases(self, mock_client):

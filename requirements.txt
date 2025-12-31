@@ -19,3 +19,4 @@ bandit
 streamlit
 plotly
 scipy
+imbalanced-learn

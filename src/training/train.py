@@ -24,13 +24,15 @@ from src.utils.metrics import calculate_comprehensive_metrics  # noqa: E402
 
 PROCESSED_DIR = "./data/processed"
 MODEL_DIR = "models"
+CHECKPOINT_DIR = f"{MODEL_DIR}/checkpoints"
 MODEL_NAME = "HousingPriceClassifier"
 
 TRAIN_PATH = f"{PROCESSED_DIR}/train.pkl"
 TEST_PATH = f"{PROCESSED_DIR}/test.pkl"
 
-
 RANDOM_STATE = 42
+CHECKPOINT_INTERVAL = 20
+TOTAL_ESTIMATORS = 100
 
 mlflow_uri = os.getenv("MLFLOW_TRACKING_URI", "sqlite:///mlflow.db")
 mlflow.set_tracking_uri(mlflow_uri)
@@ -48,6 +50,25 @@ def get_class_weights(y):
     weights = compute_class_weight(class_weight="balanced", classes=classes, y=y)
 
     return dict(zip(classes, weights, strict=False))
+
+
+def load_checkpoint():
+    checkpoint_path = f"{CHECKPOINT_DIR}/checkpoint.pkl"
+    if os.path.exists(checkpoint_path):
+        try:
+            checkpoint = joblib.load(checkpoint_path)
+            if isinstance(checkpoint, dict):
+                return checkpoint.get("model"), checkpoint.get("n_estimators", 0)
+        except Exception:
+            pass
+    return None, 0
+
+
+def save_checkpoint(model, n_estimators):
+    os.makedirs(CHECKPOINT_DIR, exist_ok=True)
+    checkpoint_path = f"{CHECKPOINT_DIR}/checkpoint.pkl"
+    joblib.dump({"model": model, "n_estimators": n_estimators}, checkpoint_path)
+    mlflow.log_artifact(checkpoint_path, "checkpoints")
 
 
 def train_baseline(X_train, X_test, y_train, y_test):
@@ -84,34 +105,44 @@ def train_baseline(X_train, X_test, y_train, y_test):
     return acc, f1
 
 
-def train_main_model(X_train, X_test, y_train, y_test):
+def train_main_model(X_train, X_test, y_train, y_test, resume_from_checkpoint=True):
     class_weights = get_class_weights(y_train)
-
     sample_weights = compute_sample_weight(class_weight="balanced", y=y_train)
 
     with mlflow.start_run(run_name="main_model_random_forest"):
-        # model = XGBClassifier(
-        #     n_estimators=300,
-        #     max_depth=6,
-        #     learning_rate=0.05,
-        #     subsample=0.8,
-        #     colsample_bytree=0.8,
-        #     objective="multi:softprob",
-        #     num_class=3,
-        #     eval_metric="mlogloss",
-        #     random_state=42,
-        #     n_jobs=-1
-        # )
-
-        model = RandomForestClassifier(
-            n_estimators=100,
-            random_state=RANDOM_STATE,
-            class_weight=class_weights,
-            n_jobs=-1,
+        model, start_estimators = (
+            load_checkpoint() if resume_from_checkpoint else (None, 0)
         )
 
-        # model.fit(X_train, y_train, sample_weight=sample_weights, eval_set=[(X_test, y_test)], verbose=False)
-        model.fit(X_train, y_train, sample_weight=sample_weights)
+        if model is None:
+            model = RandomForestClassifier(
+                n_estimators=CHECKPOINT_INTERVAL,
+                random_state=RANDOM_STATE,
+                class_weight=class_weights,
+                n_jobs=-1,
+                warm_start=True,
+            )
+            model.fit(X_train, y_train, sample_weight=sample_weights)
+            save_checkpoint(model, CHECKPOINT_INTERVAL)
+            start_estimators = CHECKPOINT_INTERVAL
+            print(f"Initial training: {CHECKPOINT_INTERVAL} estimators")
+        else:
+            print(f"Resuming from checkpoint: {start_estimators} estimators")
+
+        for n_est in range(
+            start_estimators + CHECKPOINT_INTERVAL,
+            TOTAL_ESTIMATORS + 1,
+            CHECKPOINT_INTERVAL,
+        ):
+            model.n_estimators = n_est
+            model.fit(X_train, y_train, sample_weight=sample_weights)
+            save_checkpoint(model, n_est)
+            print(f"Checkpoint saved: {n_est} estimators")
+
+        if model.n_estimators < TOTAL_ESTIMATORS:
+            model.n_estimators = TOTAL_ESTIMATORS
+            model.fit(X_train, y_train, sample_weight=sample_weights)
+            save_checkpoint(model, TOTAL_ESTIMATORS)
         # model._estimator_type = "classifier"
         preds = model.predict(X_test)
 
@@ -125,11 +156,10 @@ def train_main_model(X_train, X_test, y_train, y_test):
 
         mlflow.log_param("model", "RandomForestClassifier")
         mlflow.log_param("model_type", "RandomForest")
-        mlflow.log_param("checkpointing", "MLflow Registry")
-        mlflow.log_param("fallback_enabled", True)
-        mlflow.log_param("iterations", 300)
-        mlflow.log_param("depth", 6)
-        mlflow.log_param("learning_rate", 0.1)
+        mlflow.log_param("checkpointing", "enabled")
+        mlflow.log_param("checkpoint_interval", CHECKPOINT_INTERVAL)
+        mlflow.log_param("total_estimators", TOTAL_ESTIMATORS)
+        mlflow.log_param("resumed_from_checkpoint", start_estimators > 0)
 
         for metric_name, metric_value in metrics.items():
             if isinstance(metric_value, (int, float)) and not isinstance(
