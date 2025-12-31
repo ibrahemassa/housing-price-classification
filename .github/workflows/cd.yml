@@ -51,7 +51,7 @@ jobs:
             set -e
 
             aws ecr get-login-password --region ${{ secrets.AWS_REGION }} \
-              | docker login --username AWS --password-stdin $(echo ${{ secrets.ECR_API_IMAGE }} | cut -d/ -f1)
+              | sudo docker login --username AWS --password-stdin $(echo ${{ secrets.ECR_API_IMAGE }} | cut -d/ -f1)
 
             export ECR_MLFLOW_IMAGE=${{ secrets.ECR_MLFLOW_IMAGE }}:${{ github.sha }}
             export ECR_TRAIN_IMAGE=${{ secrets.ECR_TRAIN_IMAGE }}:${{ github.sha }}
@@ -60,5 +60,5 @@ jobs:
             export ECR_DASHBOARD_IMAGE=${{ secrets.ECR_DASHBOARD_IMAGE }}:${{ github.sha }}
 
             cd mlops-app
-            docker-compose -f docker-compose.prod.yml pull
-            docker-compose -f docker-compose.prod.yml up -d --remove-orphans
+            sudo docker-compose -f docker-compose.prod.yml pull
+            sudo -E docker-compose -f docker-compose.prod.yml up -d --remove-orphans

@@ -9,7 +9,7 @@ __pycache__/
 .gitignore
 mlruns/
 data/
-models/
+models/checkpoints/
 htmlcov/
 .pytest_cache/
 .coverage

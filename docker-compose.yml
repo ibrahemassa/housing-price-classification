@@ -34,9 +34,9 @@ services:
       - ./mlflow.db:/app/mlflow.db
       - ./mlruns:/app/mlruns
     # command: >
-    #   sh -c "pip install --no-cache-dir mlflow && 
-    #          mlflow server --host 0.0.0.0 --port 5000 
-    #          --backend-store-uri sqlite:///mlflow.db 
+    #   sh -c "pip install --no-cache-dir mlflow &&
+    #          mlflow server --host 0.0.0.0 --port 5000
+    #          --backend-store-uri sqlite:///mlflow.db
     #          --default-artifact-root file:./mlruns"
     networks:
       - mlops-network
@@ -68,7 +68,7 @@ services:
         condition: service_healthy
       mlflow-server:
         condition: service_healthy
-    restart: no
+    restart: "no"
     # command: python -m src.utils.pipelines
 
   monitor:
@@ -93,7 +93,7 @@ services:
         condition: service_healthy
       train:
         condition: service_started
-    restart: no
+    restart: "no"
 
   api:
     image: ${ECR_API_IMAGE}
@@ -115,7 +115,7 @@ services:
     depends_on:
       mlflow-server:
         condition: service_healthy
-    restart: no
+    restart: "no"
 
   dashboard:
     image: ${ECR_DASHBOARD_IMAGE}
