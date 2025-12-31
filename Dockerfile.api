@@ -19,10 +19,8 @@ COPY src/ ./src/
 COPY pyproject.toml .
 
 # Copy model files for fallback (in case MLflow paths don't resolve)
-# Using /app/fallback to avoid being overlaid by volume mounts
-COPY models/model.pkl ./fallback/model.pkl
-COPY data/processed/preprocessor.pkl ./fallback/preprocessor.pkl
-COPY data/processed/hasher.pkl ./fallback/hasher.pkl
+# Using /app/fallback_models to avoid being overlaid by volume mounts
+COPY models/model.pkl ./fallback_models/model.pkl
 
 # Set default environment variables (can be overridden via .env file in docker-compose)
 ENV PYTHONPATH=/app
