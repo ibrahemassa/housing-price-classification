@@ -11,12 +11,6 @@ services:
       - prefect-db:/root/.prefect
     networks:
       - mlops-network
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:4200/api/health')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
     restart: unless-stopped
 
   mlflow-server:
@@ -31,12 +25,6 @@ services:
       - mlruns:/app/mlruns
     networks:
       - mlops-network
-    healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-      start_period: 10s
     restart: unless-stopped
 
   train:
@@ -52,10 +40,8 @@ services:
     networks:
       - mlops-network
     depends_on:
-      prefect-server:
-        condition: service_healthy
-      mlflow-server:
-        condition: service_healthy
+      - prefect-server
+      - mlflow-server
     restart: "no"
     # command: python -m src.utils.pipelines
 
@@ -72,12 +58,8 @@ services:
     networks:
       - mlops-network
     depends_on:
-      prefect-server:
-        condition: service_healthy
-      mlflow-server:
-        condition: service_healthy
-      train:
-        condition: service_started
+      - prefect-server
+      - mlflow-server
     restart: "no"
 
   api:
@@ -95,9 +77,8 @@ services:
     networks:
       - mlops-network
     depends_on:
-      mlflow-server:
-        condition: service_healthy
-    restart: unless-stopped
+      - mlflow-server
+    restart: "no"
 
   dashboard:
     image: ${ECR_DASHBOARD_IMAGE}
@@ -114,8 +95,7 @@ services:
     networks:
       - mlops-network
     depends_on:
-      mlflow-server:
-        condition: service_healthy
+      - mlflow-server
     restart: unless-stopped
 
 volumes:
