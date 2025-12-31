@@ -60,5 +60,5 @@ jobs:
             export ECR_DASHBOARD_IMAGE=${{ secrets.ECR_DASHBOARD_IMAGE }}:${{ github.sha }}
 
             cd mlops-app
-            docker compose -f docker-compose.prod.yml pull
-            docker compose -f docker-compose.prod.yml up -d --remove-orphans
+            docker-compose -f docker-compose.prod.yml pull
+            docker-compose -f docker-compose.prod.yml up -d --remove-orphans
