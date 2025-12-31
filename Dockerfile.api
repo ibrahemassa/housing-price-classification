@@ -18,9 +18,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY src/ ./src/
 COPY pyproject.toml .
 
-# Copy model files for fallback (in case MLflow paths don't resolve)
-# Using /app/fallback_models to avoid being overlaid by volume mounts
-COPY models/model.pkl ./fallback_models/model.pkl
+# Create fallback models directory (model will be loaded from MLflow at runtime)
+# In production, MLflow should always be available; this directory is a placeholder
+RUN mkdir -p ./fallback_models
 
 # Set default environment variables (can be overridden via .env file in docker-compose)
 ENV PYTHONPATH=/app
