@@ -50,14 +50,12 @@ class TestTrain:
     @patch("src.training.train.mlflow.log_param")
     @patch("src.training.train.mlflow.log_metric")
     @patch("src.training.train.mlflow.start_run")
-    @patch("src.training.train.accuracy_score")
-    @patch("src.training.train.f1_score")
+    @patch("src.training.train.calculate_comprehensive_metrics")
     @patch("src.training.train.joblib.load")
     def test_train_baseline(
         self,
         mock_load,
-        mock_f1,
-        mock_acc,
+        mock_metrics,
         mock_mlflow_run,
         mock_log_metric,
         mock_log_param,
@@ -67,8 +65,12 @@ class TestTrain:
         X_train, X_test, y_train, y_test = sample_training_data
         mock_load.side_effect = [(X_train, y_train), (X_test, y_test)]
 
-        mock_acc.return_value = 0.85
-        mock_f1.return_value = 0.82
+        mock_metrics.return_value = {
+            "accuracy": 0.85,
+            "macro_f1": 0.82,
+            "macro_precision": 0.80,
+            "macro_recall": 0.78,
+        }
         mock_context = MagicMock()
         mock_mlflow_run.return_value.__enter__.return_value = mock_context
 
@@ -84,16 +86,14 @@ class TestTrain:
     @patch("src.training.train.mlflow.start_run")
     @patch("src.training.train.joblib.dump")
     @patch("src.training.train.mlflow.sklearn.log_model")
-    @patch("src.training.train.accuracy_score")
-    @patch("src.training.train.f1_score")
+    @patch("src.training.train.calculate_comprehensive_metrics")
     @patch("src.training.train.joblib.load")
     @patch("src.training.train.os.makedirs")
     def test_train_main_model(
         self,
         mock_makedirs,
         mock_load,
-        mock_f1,
-        mock_acc,
+        mock_metrics,
         mock_log_model,
         mock_dump,
         mock_mlflow_run,
@@ -105,9 +105,12 @@ class TestTrain:
         X_train, X_test, y_train, y_test = sample_training_data
         mock_load.side_effect = [(X_train, y_train), (X_test, y_test)]
 
-        mock_acc.return_value = 0.90
-        mock_f1.return_value = 0.88
-        # Mock mlflow.start_run to return a context manager
+        mock_metrics.return_value = {
+            "accuracy": 0.90,
+            "macro_f1": 0.88,
+            "macro_precision": 0.87,
+            "macro_recall": 0.86,
+        }
         mock_run = MagicMock()
         mock_mlflow_run.return_value = mock_run
         mock_run.__enter__ = MagicMock(return_value=mock_run)
@@ -127,12 +130,10 @@ class TestTrain:
     @patch("src.training.train.mlflow.start_run")
     @patch("src.training.train.joblib.dump")
     @patch("src.training.train.mlflow.sklearn.log_model")
-    @patch("src.training.train.accuracy_score")
-    @patch("src.training.train.f1_score")
+    @patch("src.training.train.calculate_comprehensive_metrics")
     def test_train_main_model_creates_model_file(
         self,
-        mock_f1,
-        mock_acc,
+        mock_metrics,
         mock_log_model,
         mock_dump,
         mock_mlflow_run,
@@ -143,9 +144,12 @@ class TestTrain:
         """Test that train_main_model saves model to file."""
         X_train, X_test, y_train, y_test = sample_training_data
 
-        mock_acc.return_value = 0.90
-        mock_f1.return_value = 0.88
-        # Mock mlflow.start_run to return a context manager
+        mock_metrics.return_value = {
+            "accuracy": 0.90,
+            "macro_f1": 0.88,
+            "macro_precision": 0.87,
+            "macro_recall": 0.86,
+        }
         mock_run = MagicMock()
         mock_mlflow_run.return_value = mock_run
         mock_run.__enter__ = MagicMock(return_value=mock_run)
@@ -153,7 +157,6 @@ class TestTrain:
 
         train_main_model(X_train, X_test, y_train, y_test)
 
-        # Verify model was dumped
         mock_dump.assert_called_once()
         dump_args = mock_dump.call_args
         assert "model.pkl" in str(dump_args[0][1])
@@ -169,12 +172,10 @@ class TestTrain:
     @patch("src.training.train.mlflow.log_param")
     @patch("src.training.train.mlflow.log_metric")
     @patch("src.training.train.mlflow.start_run")
-    @patch("src.training.train.accuracy_score")
-    @patch("src.training.train.f1_score")
+    @patch("src.training.train.calculate_comprehensive_metrics")
     def test_train_baseline_uses_balanced_class_weight(
         self,
-        mock_f1,
-        mock_acc,
+        mock_metrics,
         mock_mlflow_run,
         mock_log_metric,
         mock_log_param,
@@ -183,13 +184,16 @@ class TestTrain:
         """Test that baseline model uses balanced class weights."""
         X_train, X_test, y_train, y_test = sample_training_data
 
-        mock_acc.return_value = 0.85
-        mock_f1.return_value = 0.82
+        mock_metrics.return_value = {
+            "accuracy": 0.85,
+            "macro_f1": 0.82,
+            "macro_precision": 0.80,
+            "macro_recall": 0.78,
+        }
         mock_context = MagicMock()
         mock_mlflow_run.return_value.__enter__.return_value = mock_context
 
         train_baseline(X_train, X_test, y_train, y_test)
 
-        # Verify mlflow logging
         assert mock_log_param.called
         assert mock_log_metric.called

@@ -31,8 +31,7 @@ class TestEvaluation:
         assert m == model
 
     @patch("src.evaluation.evaluate.joblib.load")
-    @patch("src.evaluation.evaluate.accuracy_score")
-    @patch("src.evaluation.evaluate.f1_score")
+    @patch("src.evaluation.evaluate.calculate_comprehensive_metrics")
     @patch("src.evaluation.evaluate.classification_report")
     @patch("src.evaluation.evaluate.confusion_matrix")
     @patch("src.evaluation.evaluate.ConfusionMatrixDisplay")
@@ -45,8 +44,7 @@ class TestEvaluation:
         mock_cm_display,
         mock_cm,
         mock_report,
-        mock_f1,
-        mock_acc,
+        mock_metrics,
         mock_load,
     ):
         """Test evaluate_model function."""
@@ -57,8 +55,15 @@ class TestEvaluation:
 
         mock_load.side_effect = [(X_test, y_test), model]
 
-        mock_acc.return_value = 0.85
-        mock_f1.return_value = 0.82
+        mock_metrics.return_value = {
+            "accuracy": 0.85,
+            "macro_f1": 0.82,
+            "macro_precision": 0.80,
+            "macro_recall": 0.78,
+            "weighted_precision": 0.81,
+            "weighted_recall": 0.79,
+            "weighted_f1": 0.80,
+        }
         mock_cm.return_value = np.array([[3, 1, 0], [0, 2, 1], [0, 0, 3]])
         mock_display = MagicMock()
         mock_cm_display.return_value = mock_display
@@ -68,16 +73,13 @@ class TestEvaluation:
 
         evaluate_model()
 
-        # Verify metrics were called
-        mock_acc.assert_called_once()
-        mock_f1.assert_called_once()
+        mock_metrics.assert_called_once()
         mock_report.assert_called_once()
         mock_cm.assert_called_once()
         mock_makedirs.assert_called_once()
 
     @patch("src.evaluation.evaluate.joblib.load")
-    @patch("src.evaluation.evaluate.accuracy_score")
-    @patch("src.evaluation.evaluate.f1_score")
+    @patch("src.evaluation.evaluate.calculate_comprehensive_metrics")
     @patch("src.evaluation.evaluate.classification_report")
     @patch("src.evaluation.evaluate.confusion_matrix")
     @patch("src.evaluation.evaluate.ConfusionMatrixDisplay")
@@ -90,8 +92,7 @@ class TestEvaluation:
         mock_cm_display,
         mock_cm,
         mock_report,
-        mock_f1,
-        mock_acc,
+        mock_metrics,
         mock_load,
     ):
         """Test that evaluate_model saves confusion matrix."""
@@ -102,8 +103,15 @@ class TestEvaluation:
 
         mock_load.side_effect = [(X_test, y_test), model]
 
-        mock_acc.return_value = 0.85
-        mock_f1.return_value = 0.82
+        mock_metrics.return_value = {
+            "accuracy": 0.85,
+            "macro_f1": 0.82,
+            "macro_precision": 0.80,
+            "macro_recall": 0.78,
+            "weighted_precision": 0.81,
+            "weighted_recall": 0.79,
+            "weighted_f1": 0.80,
+        }
         mock_cm.return_value = np.array([[3, 1, 0], [0, 2, 1], [0, 0, 3]])
         mock_display = MagicMock()
         mock_cm_display.return_value = mock_display
@@ -113,7 +121,6 @@ class TestEvaluation:
 
         evaluate_model()
 
-        # Verify plot was saved
         mock_plt.savefig.assert_called_once()
         mock_plt.close.assert_called_once()
 
