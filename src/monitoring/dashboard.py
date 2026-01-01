@@ -62,24 +62,36 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# Apply custom CSS for Catppuccin theme
+# Apply custom CSS for Catppuccin theme with pink/lavender accents
 st.markdown(
     f"""
 <style>
-    /* Main background */
+    /* Main background with subtle gradient */
     .stApp {{
-        background-color: {CATPPUCCIN_COLORS['base']};
+        background: linear-gradient(135deg, {CATPPUCCIN_COLORS['base']} 0%, {CATPPUCCIN_COLORS['mantle']} 50%, {CATPPUCCIN_COLORS['crust']} 100%);
         color: {CATPPUCCIN_COLORS['text']};
     }}
 
-    /* Sidebar */
+    /* Sidebar with lavender accent */
     [data-testid="stSidebar"] {{
-        background-color: {CATPPUCCIN_COLORS['mantle']};
+        background: linear-gradient(180deg, {CATPPUCCIN_COLORS['mantle']} 0%, {CATPPUCCIN_COLORS['crust']} 100%);
+        border-right: 2px solid {CATPPUCCIN_COLORS['lavender']}40;
     }}
 
-    /* Headers */
-    h1, h2, h3, h4, h5, h6 {{
-        color: {CATPPUCCIN_COLORS['text']};
+    /* Headers with pink/lavender gradient text */
+    h1 {{
+        background: linear-gradient(90deg, {CATPPUCCIN_COLORS['pink']}, {CATPPUCCIN_COLORS['lavender']});
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }}
+
+    h2, h3 {{
+        color: {CATPPUCCIN_COLORS['lavender']};
+    }}
+
+    h4, h5, h6 {{
+        color: {CATPPUCCIN_COLORS['pink']};
     }}
 
     /* Text */
@@ -89,30 +101,74 @@ st.markdown(
 
     /* Metrics */
     [data-testid="stMetricValue"] {{
-        color: {CATPPUCCIN_COLORS['blue']};
+        color: {CATPPUCCIN_COLORS['pink']};
     }}
 
     /* Buttons */
     .stButton > button {{
-        background-color: {CATPPUCCIN_COLORS['blue']};
+        background-color: {CATPPUCCIN_COLORS['pink']};
         color: {CATPPUCCIN_COLORS['base']};
         border: none;
     }}
 
     .stButton > button:hover {{
-        background-color: {CATPPUCCIN_COLORS['sapphire']};
+        background-color: {CATPPUCCIN_COLORS['lavender']};
     }}
 
-    /* Selectbox */
+    /* Selectbox with lavender border */
     [data-baseweb="select"] {{
         background-color: {CATPPUCCIN_COLORS['surface0']};
         color: {CATPPUCCIN_COLORS['text']};
+        border: 1px solid {CATPPUCCIN_COLORS['lavender']}60;
     }}
 
-    /* Dataframes */
+    /* Dataframes with pink accent */
     .dataframe {{
         background-color: {CATPPUCCIN_COLORS['surface0']};
         color: {CATPPUCCIN_COLORS['text']};
+        border: 1px solid {CATPPUCCIN_COLORS['pink']}40;
+    }}
+
+    /* Metric labels with lavender */
+    [data-testid="stMetricLabel"] {{
+        color: {CATPPUCCIN_COLORS['lavender']};
+    }}
+
+    /* Tab styling */
+    .stTabs [data-baseweb="tab-list"] {{
+        gap: 8px;
+    }}
+
+    .stTabs [data-baseweb="tab"] {{
+        background-color: {CATPPUCCIN_COLORS['surface0']};
+        border-radius: 8px;
+        color: {CATPPUCCIN_COLORS['text']};
+    }}
+
+    .stTabs [aria-selected="true"] {{
+        background: linear-gradient(90deg, {CATPPUCCIN_COLORS['pink']}80, {CATPPUCCIN_COLORS['lavender']}80);
+    }}
+
+    /* Expander styling */
+    .streamlit-expanderHeader {{
+        background-color: {CATPPUCCIN_COLORS['surface0']};
+        border-left: 3px solid {CATPPUCCIN_COLORS['pink']};
+    }}
+
+    /* Divider with gradient */
+    hr {{
+        background: linear-gradient(90deg, {CATPPUCCIN_COLORS['pink']}60, {CATPPUCCIN_COLORS['lavender']}60, {CATPPUCCIN_COLORS['mauve']}60);
+        height: 2px;
+        border: none;
+    }}
+
+    /* Radio buttons */
+    [data-testid="stRadio"] label {{
+        color: {CATPPUCCIN_COLORS['text']};
+    }}
+
+    [data-testid="stRadio"] label:hover {{
+        color: {CATPPUCCIN_COLORS['pink']};
     }}
 
     /* Success messages */
@@ -135,8 +191,8 @@ st.markdown(
 
     /* Info messages */
     .stInfo {{
-        background-color: {CATPPUCCIN_COLORS['blue']}20;
-        border-left: 4px solid {CATPPUCCIN_COLORS['blue']};
+        background-color: {CATPPUCCIN_COLORS['lavender']}20;
+        border-left: 4px solid {CATPPUCCIN_COLORS['lavender']};
     }}
 </style>
 """,
@@ -566,7 +622,7 @@ def show_overview(
             y="count",
             title="Predictions Over Time",
             labels={"timestamp": "Time", "count": "Number of Predictions"},
-            color_discrete_sequence=[CATPPUCCIN_COLORS["blue"]],
+            color_discrete_sequence=[CATPPUCCIN_COLORS["pink"]],
         )
         fig.update_layout(height=300)
         fig = apply_catppuccin_theme(fig)
@@ -588,9 +644,9 @@ def show_overview(
             names=pred_labels,
             title="Production Predictions",
             color_discrete_sequence=[
-                CATPPUCCIN_COLORS["blue"],
-                CATPPUCCIN_COLORS["green"],
-                CATPPUCCIN_COLORS["yellow"],
+                CATPPUCCIN_COLORS["pink"],
+                CATPPUCCIN_COLORS["lavender"],
+                CATPPUCCIN_COLORS["mauve"],
             ],
         )
         fig = apply_catppuccin_theme(fig)
@@ -609,8 +665,8 @@ def show_overview(
                         y=df_clean["accuracy"],
                         name="Accuracy",
                         mode="lines+markers",
-                        line={"color": CATPPUCCIN_COLORS["blue"], "width": 2},
-                        marker={"color": CATPPUCCIN_COLORS["blue"]},
+                        line={"color": CATPPUCCIN_COLORS["pink"], "width": 2},
+                        marker={"color": CATPPUCCIN_COLORS["pink"]},
                     )
                 )
                 fig.add_trace(
@@ -619,8 +675,8 @@ def show_overview(
                         y=df_clean["macro_f1"],
                         name="Macro F1",
                         mode="lines+markers",
-                        line={"color": CATPPUCCIN_COLORS["green"], "width": 2},
-                        marker={"color": CATPPUCCIN_COLORS["green"]},
+                        line={"color": CATPPUCCIN_COLORS["lavender"], "width": 2},
+                        marker={"color": CATPPUCCIN_COLORS["lavender"]},
                     )
                 )
                 fig.update_layout(
@@ -735,8 +791,8 @@ def show_drift_monitoring(ref_data, prod_inputs, prod_preds, mlflow_metrics):
             title=f"{CAT_FEATURE.title()} Distribution Comparison",
             labels={"value": "Proportion", "index": "District"},
             color_discrete_sequence=[
-                CATPPUCCIN_COLORS["blue"],
-                CATPPUCCIN_COLORS["green"],
+                CATPPUCCIN_COLORS["pink"],
+                CATPPUCCIN_COLORS["lavender"],
             ],
         )
         fig = apply_catppuccin_theme(fig)
@@ -761,8 +817,8 @@ def show_drift_monitoring(ref_data, prod_inputs, prod_preds, mlflow_metrics):
             title=f"{HIGH_CARD_FEATURE.title()} Cardinality",
             color="Dataset",
             color_discrete_sequence=[
-                CATPPUCCIN_COLORS["blue"],
-                CATPPUCCIN_COLORS["green"],
+                CATPPUCCIN_COLORS["pink"],
+                CATPPUCCIN_COLORS["lavender"],
             ],
         )
         fig = apply_catppuccin_theme(fig)
@@ -802,7 +858,7 @@ def show_drift_monitoring(ref_data, prod_inputs, prod_preds, mlflow_metrics):
         barmode="group",
         title="Prediction Distribution Comparison",
         labels={"value": "Proportion", "index": "Price Category"},
-        color_discrete_sequence=[CATPPUCCIN_COLORS["blue"], CATPPUCCIN_COLORS["green"]],
+        color_discrete_sequence=[CATPPUCCIN_COLORS["pink"], CATPPUCCIN_COLORS["lavender"]],
     )
     fig = apply_catppuccin_theme(fig)
     st.plotly_chart(fig, width="stretch")
@@ -828,7 +884,7 @@ def show_drift_monitoring(ref_data, prod_inputs, prod_preds, mlflow_metrics):
                         name="Reference",
                         opacity=0.7,
                         nbinsx=30,
-                        marker_color=CATPPUCCIN_COLORS["blue"],
+                        marker_color=CATPPUCCIN_COLORS["pink"],
                     )
                 )
                 fig.add_trace(
@@ -837,7 +893,7 @@ def show_drift_monitoring(ref_data, prod_inputs, prod_preds, mlflow_metrics):
                         name="Production",
                         opacity=0.7,
                         nbinsx=30,
-                        marker_color=CATPPUCCIN_COLORS["green"],
+                        marker_color=CATPPUCCIN_COLORS["lavender"],
                     )
                 )
                 fig.update_layout(
@@ -859,14 +915,14 @@ def show_drift_monitoring(ref_data, prod_inputs, prod_preds, mlflow_metrics):
                     go.Box(
                         y=ref_values,
                         name="Reference",
-                        marker_color=CATPPUCCIN_COLORS["blue"],
+                        marker_color=CATPPUCCIN_COLORS["pink"],
                     )
                 )
                 fig.add_trace(
                     go.Box(
                         y=prod_values,
                         name="Production",
-                        marker_color=CATPPUCCIN_COLORS["green"],
+                        marker_color=CATPPUCCIN_COLORS["lavender"],
                     )
                 )
                 fig.update_layout(
@@ -969,7 +1025,7 @@ def show_feature_statistics(ref_data, prod_inputs):
                     x=ref_data[selected_feature].dropna(),
                     name="Reference",
                     nbinsx=30,
-                    marker_color=CATPPUCCIN_COLORS["blue"],
+                    marker_color=CATPPUCCIN_COLORS["pink"],
                 ),
                 row=1,
                 col=1,
@@ -979,7 +1035,7 @@ def show_feature_statistics(ref_data, prod_inputs):
                     x=prod_inputs[selected_feature].dropna(),
                     name="Production",
                     nbinsx=30,
-                    marker_color=CATPPUCCIN_COLORS["green"],
+                    marker_color=CATPPUCCIN_COLORS["lavender"],
                 ),
                 row=1,
                 col=2,
@@ -1013,8 +1069,8 @@ def show_feature_statistics(ref_data, prod_inputs):
                 barmode="group",
                 title=f"{selected_feature} Value Counts",
                 color_discrete_sequence=[
-                    CATPPUCCIN_COLORS["blue"],
-                    CATPPUCCIN_COLORS["green"],
+                    CATPPUCCIN_COLORS["pink"],
+                    CATPPUCCIN_COLORS["lavender"],
                 ],
             )
             fig = apply_catppuccin_theme(fig)
@@ -1153,10 +1209,10 @@ def show_performance_metrics(model_metrics_df, ref_data, prod_preds):
 
     # Add all available metrics to the plot
     metrics_to_plot = [
-        ("accuracy", CATPPUCCIN_COLORS["blue"]),
-        ("macro_precision", CATPPUCCIN_COLORS["green"]),
-        ("macro_recall", CATPPUCCIN_COLORS["yellow"]),
-        ("macro_f1", CATPPUCCIN_COLORS["mauve"]),
+        ("accuracy", CATPPUCCIN_COLORS["pink"]),
+        ("macro_precision", CATPPUCCIN_COLORS["lavender"]),
+        ("macro_recall", CATPPUCCIN_COLORS["mauve"]),
+        ("macro_f1", CATPPUCCIN_COLORS["flamingo"]),
     ]
 
     for metric_name, color in metrics_to_plot:
@@ -1229,9 +1285,9 @@ def show_performance_metrics(model_metrics_df, ref_data, prod_preds):
                 names=[categories.get(int(k), str(k)) for k in pred_counts.index],
                 title="Production Prediction Distribution",
                 color_discrete_sequence=[
-                    CATPPUCCIN_COLORS["blue"],
-                    CATPPUCCIN_COLORS["green"],
-                    CATPPUCCIN_COLORS["yellow"],
+                    CATPPUCCIN_COLORS["pink"],
+                    CATPPUCCIN_COLORS["lavender"],
+                    CATPPUCCIN_COLORS["mauve"],
                 ],
             )
             fig = apply_catppuccin_theme(fig)
@@ -1311,7 +1367,7 @@ def show_production_data(prod_inputs, prod_preds):
             x=feature_to_plot,
             title=f"{feature_to_plot} Distribution",
             nbins=30,
-            color_discrete_sequence=[CATPPUCCIN_COLORS["blue"]],
+            color_discrete_sequence=[CATPPUCCIN_COLORS["pink"]],
         )
         fig = apply_catppuccin_theme(fig)
         st.plotly_chart(fig, width="stretch")
@@ -1322,7 +1378,7 @@ def show_production_data(prod_inputs, prod_preds):
             y=value_counts.values,
             title=f"{feature_to_plot} Value Counts",
             labels={"x": feature_to_plot, "y": "Count"},
-            color_discrete_sequence=[CATPPUCCIN_COLORS["blue"]],
+            color_discrete_sequence=[CATPPUCCIN_COLORS["pink"]],
         )
         fig = apply_catppuccin_theme(fig)
         st.plotly_chart(fig, width="stretch")

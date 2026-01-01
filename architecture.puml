@@ -1,0 +1,144 @@
+@startuml MLOps Architecture Diagram
+
+!theme plain
+skinparam componentStyle rectangle
+skinparam linetype ortho
+
+title MLOps Pipeline Architecture
+
+' External Users
+actor User as "Users/Client Applications"
+
+' Core Services
+package "Docker Network (mlops-network)" {
+    
+    component [Prefect Server] as PrefectServer {
+        note right: Orchestration & Scheduling\nPort: 4200\nUI: http://localhost:4200
+    }
+    
+    component [MLflow Server] as MLflowServer {
+        note right: Model Tracking & Registry\nPort: 5000\nUI: http://localhost:5000\nBackend: SQLite (mlflow.db)\nArtifacts: mlruns/
+    }
+    
+    component [Training Container] as TrainContainer {
+        component [Preprocess] as Preprocess
+        component [Train Model] as Train
+        component [Register Model] as Register
+        note right: Training Pipeline\nPreprocess → Train → Register
+    }
+    
+    component [Monitoring Container] as MonitorContainer {
+        component [Drift Detection] as DriftDetect
+        component [PSI Calculation] as PSI
+        component [Cardinality Check] as Cardinality
+        component [Prediction Drift] as PredDrift
+        component [Feature Validation] as FeatureVal
+        component [Continuous Evaluation] as ContEval
+        note right: Monitoring Pipeline\nChecks: PSI, Cardinality,\nPrediction Distribution\nTriggers retraining if drift ≥ 3 alerts
+    }
+    
+    component [API Container] as APIContainer {
+        component [FastAPI] as FastAPI
+        component [Model Loader] as ModelLoader
+        component [Preprocessor] as Preprocessor
+        component [Production Logger] as ProdLogger
+        note right: Prediction API\nPort: 8081\nEndpoints:\n- GET /health\n- POST /predict
+    }
+    
+    component [Dashboard Container] as DashboardContainer {
+        component [Streamlit Dashboard] as Streamlit
+        note right: Monitoring Dashboard\nPort: 8501\nVisualizes drift metrics\nand model performance
+    }
+}
+
+' Data Storage
+package "Data Storage" {
+    database "Data Directory" as DataDir {
+        folder "raw/" as RawData
+        folder "processed/" as ProcessedData
+        folder "production/" as ProdData
+        folder "reference/" as RefData
+        folder "monitoring/plots/" as MonitoringPlots
+    }
+    
+    database "Models Directory" as ModelsDir {
+        file "model.pkl" as ModelFile
+        file "checkpoints/" as Checkpoints
+    }
+    
+    database "MLflow Storage" as MLflowStorage {
+        database "mlflow.db" as MLflowDB
+        folder "mlruns/" as MLruns
+    }
+    
+    database "Prefect DB" as PrefectDB {
+        note right: SQLite database\nfor workflow state
+    }
+}
+
+' Connections - User to Services
+User --> APIContainer : HTTP Requests\n(Predictions)
+User --> DashboardContainer : HTTP\n(View Dashboard)
+User --> MLflowServer : HTTP\n(Model Registry UI)
+User --> PrefectServer : HTTP\n(Workflow UI)
+
+' Connections - Training Pipeline
+PrefectServer --> TrainContainer : Orchestrates\nTraining Flow
+TrainContainer --> Preprocess : Step 1
+Preprocess --> Train : Step 2
+Train --> Register : Step 3
+Preprocess --> DataDir : Read raw data\nWrite processed
+Train --> DataDir : Read processed data
+Train --> MLflowServer : Log experiments\n& metrics
+Register --> MLflowServer : Register model\n(production/staging)
+Register --> ModelsDir : Save model artifacts
+
+' Connections - Monitoring Pipeline
+PrefectServer --> MonitorContainer : Orchestrates\nMonitoring Flow
+MonitorContainer --> DriftDetect : Main Task
+DriftDetect --> PSI : Calculate PSI
+DriftDetect --> Cardinality : Check cardinality
+DriftDetect --> PredDrift : Check prediction drift
+DriftDetect --> FeatureVal : Validate features
+DriftDetect --> ContEval : Continuous evaluation
+MonitorContainer --> DataDir : Read reference &\nproduction data
+MonitorContainer --> MLflowServer : Log drift metrics
+MonitorContainer --> DataDir : Save plots
+MonitorContainer ..> TrainContainer : Trigger retraining\nif drift ≥ 3 alerts
+
+' Connections - API
+APIContainer --> FastAPI : Serves requests
+FastAPI --> ModelLoader : Load model
+ModelLoader --> MLflowServer : Fetch model\nfrom registry
+ModelLoader --> ModelsDir : Load model file
+FastAPI --> Preprocessor : Preprocess input
+Preprocessor --> DataDir : Load preprocessor\n& hasher
+FastAPI --> ProdLogger : Log inputs & predictions
+ProdLogger --> DataDir : Write to production/\n(inputs.parquet,\npredictions.parquet)
+
+' Connections - Dashboard
+DashboardContainer --> Streamlit : Render UI
+Streamlit --> DataDir : Read monitoring data\n& plots
+Streamlit --> MLflowServer : Fetch metrics
+
+' Connections - MLflow
+MLflowServer --> MLflowStorage : Read/Write
+MLflowStorage --> MLflowDB : Store metadata
+MLflowStorage --> MLruns : Store artifacts
+
+' Connections - Prefect
+PrefectServer --> PrefectDB : Store workflow state
+
+' Styling
+PrefectServer -[#blue]- TrainContainer
+PrefectServer -[#blue]- MonitorContainer
+MLflowServer -[#green]- TrainContainer
+MLflowServer -[#green]- MonitorContainer
+MLflowServer -[#green]- APIContainer
+DataDir -[#orange]- TrainContainer
+DataDir -[#orange]- MonitorContainer
+DataDir -[#orange]- APIContainer
+DataDir -[#orange]- DashboardContainer
+
+@enduml
+
