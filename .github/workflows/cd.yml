@@ -54,14 +54,14 @@ jobs:
       - name: HealthCheck > App
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.SSH_HOST }}
-          key: ${{ secrets.SSH_KEY }}
+          host: ${{ secrets.EC2_HOST }}
+          key: ${{ secrets.EC2_SSH_KEY }}
           username: deploy
           script: |
             /usr/bin/curl --retry-connrefused \
               --connect-timeout 5 --max-time 10 --retry 5 --retry-delay 5 \
               --retry-max-time 40 --fail --retry-all-errors -sv \
-              http://localhost:${{ env.APP_PORT }}/health
+              http://localhost:${{ env.API_PORT }}/health
 
       - name: Notify for success
         uses: umahmood/pushover-actions@main
