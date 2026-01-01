@@ -8,6 +8,8 @@ jobs:
   deploy:
     environment: prod
     runs-on: ubuntu-latest
+    env:
+      APP_PORT: 8081
 
     steps:
       - name: Checkout Code
@@ -48,6 +50,18 @@ jobs:
             sudo docker compose up -d --remove-orphans
 
             sudo docker compose ps
+
+      - name: HealthCheck > App
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          key: ${{ secrets.SSH_KEY }}
+          username: deploy
+          script: |
+            /usr/bin/curl --retry-connrefused \
+              --connect-timeout 5 --max-time 10 --retry 5 --retry-delay 5 \
+              --retry-max-time 40 --fail --retry-all-errors -sv \
+              http://localhost:${{ env.APP_PORT }}/health
 
       - name: Notify for success
         uses: umahmood/pushover-actions@main
