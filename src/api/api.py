@@ -9,12 +9,10 @@ from scipy.sparse import hstack
 from src.utils.model_loader import load_model
 from src.utils.production_logger import log_input, log_prediction
 
-# Primary paths (from volume mounts)
 MODEL_PATH = "models/model.pkl"
 PREPROCESSOR_PATH = "data/processed/preprocessor.pkl"
 HASHER_PATH = "data/processed/hasher.pkl"
 
-# Fallback paths (baked into Docker image)
 FALLBACK_MODEL_PATH = "fallback/model.pkl"
 FALLBACK_PREPROCESSOR_PATH = "fallback/preprocessor.pkl"
 FALLBACK_HASHER_PATH = "fallback/hasher.pkl"
@@ -70,8 +68,9 @@ def get_model():
 
 def load_preprocessor_and_hasher():
     """Load preprocessor and hasher. Prefers fallback files (baked into image) for consistency."""
-    # Prefer fallback files first - they're guaranteed to be consistent with the fallback model
-    if os.path.exists(FALLBACK_PREPROCESSOR_PATH) and os.path.exists(FALLBACK_HASHER_PATH):
+    if os.path.exists(FALLBACK_PREPROCESSOR_PATH) and os.path.exists(
+        FALLBACK_HASHER_PATH
+    ):
         try:
             prep = joblib.load(FALLBACK_PREPROCESSOR_PATH)
             hash_ = joblib.load(FALLBACK_HASHER_PATH)
@@ -81,7 +80,6 @@ def load_preprocessor_and_hasher():
         except Exception as e:
             print(f"Failed to load from fallback paths: {e}")
 
-    # Fall back to volume-mounted files
     if os.path.exists(PREPROCESSOR_PATH) and os.path.exists(HASHER_PATH):
         try:
             prep = joblib.load(PREPROCESSOR_PATH)
@@ -121,7 +119,6 @@ class HousingInput(BaseModel):
 def preprocess_input(data: dict):
     df = pd.DataFrame([data])
 
-    # Apply feature crosses (must match training preprocessing)
     df = feature_cross(df)
 
     X_base = preprocessor.transform(df)
@@ -147,7 +144,5 @@ def predict(input_data: HousingInput):
     log_input(data)
     prediction = model.predict(X)[0]
     log_prediction(int(prediction))
-
-    # print(f"Prediction: {prediction}")
 
     return {"price_category": CATEGORIES[int(prediction)]}

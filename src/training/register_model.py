@@ -4,7 +4,6 @@ from mlflow.tracking import MlflowClient
 
 MODEL_NAME = "HousingPriceClassifier"
 
-# Use MLflow server if available, otherwise fall back to local SQLite
 mlflow_uri = os.getenv("MLFLOW_TRACKING_URI", "sqlite:///mlflow.db")
 client = MlflowClient(tracking_uri=mlflow_uri)
 

@@ -6,15 +6,15 @@ project_root = Path(__file__).parent.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-import joblib  # noqa: E402
-import matplotlib.pyplot as plt  # noqa: E402
-from sklearn.metrics import (  # noqa: E402
+import joblib
+import matplotlib.pyplot as plt
+from sklearn.metrics import (
     ConfusionMatrixDisplay,
     classification_report,
     confusion_matrix,
 )
 
-from src.utils.metrics import calculate_comprehensive_metrics  # noqa: E402
+from src.utils.metrics import calculate_comprehensive_metrics
 
 PROCESSED_DIR = "data/processed"
 MODEL_DIR = "models"

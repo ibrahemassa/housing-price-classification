@@ -34,24 +34,19 @@ jobs:
             set -e
             cd mlops-app
 
-            # Stop existing containers
             sudo docker compose down || true
 
-            # Create required files/directories (prevents Docker from creating directories)
             touch mlflow.db
             mkdir -p mlruns data models data/raw data/processed data/reference data/production
 
-            # Create .env if it doesn't exist
             if [ ! -f .env ]; then
               echo "MLFLOW_TRACKING_URI=http://mlflow-server:5000" > .env
               echo "PREFECT_API_URL=http://prefect-server:4200/api" >> .env
             fi
 
-            # Build and start all services
             sudo docker compose build
             sudo docker compose up -d --remove-orphans
 
-            # Show status
             sudo docker compose ps
 
       - name: Notify for success

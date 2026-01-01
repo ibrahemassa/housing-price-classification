@@ -12,8 +12,8 @@ project_root = Path(__file__).parent.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-import pandas as pd  # noqa: E402
-from scipy import stats  # noqa: E402
+import pandas as pd
+from scipy import stats
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -58,11 +58,9 @@ class FeatureValidator:
                 col_stats["q75"] = float(series.quantile(0.75))
                 col_stats["iqr"] = float(col_stats["q75"] - col_stats["q25"])
 
-                # Skewness and kurtosis
                 col_stats["skewness"] = float(stats.skew(series.dropna()))
                 col_stats["kurtosis"] = float(stats.kurtosis(series.dropna()))
 
-                # Missing values
                 col_stats["missing_count"] = int(series.isna().sum())
                 col_stats["missing_pct"] = float(series.isna().sum() / len(series))
             else:
@@ -138,7 +136,6 @@ class FeatureValidator:
             }
 
             if ref_stats["type"] == "numerical":
-                # Check mean shift
                 prod_mean = prod_series.mean()
                 mean_shift = abs(prod_mean - ref_stats["mean"]) / max(
                     abs(ref_stats["mean"]), 1e-6
@@ -176,7 +173,6 @@ class FeatureValidator:
                         }
                     )
 
-                # Check std shift
                 prod_std = prod_series.std()
                 std_shift = abs(prod_std - ref_stats["std"]) / max(
                     ref_stats["std"], 1e-6
@@ -200,7 +196,6 @@ class FeatureValidator:
                         }
                     )
 
-                # Check for outliers (using IQR method)
                 q1 = prod_series.quantile(0.25)
                 q3 = prod_series.quantile(0.75)
                 iqr = q3 - q1
@@ -211,7 +206,7 @@ class FeatureValidator:
                 ).sum()
                 outlier_pct = outliers / len(prod_series)
 
-                if outlier_pct > 0.05:  # More than 5% outliers
+                if outlier_pct > 0.05:
                     col_validation["checks"].append(
                         {
                             "check": "outliers",
@@ -228,7 +223,6 @@ class FeatureValidator:
                         }
                     )
 
-                # Check skewness
                 prod_skew = stats.skew(prod_series.dropna())
                 if abs(prod_skew) > skew_threshold:
                     col_validation["checks"].append(
@@ -247,9 +241,8 @@ class FeatureValidator:
                         }
                     )
 
-                # Check missing values
                 prod_missing_pct = prod_series.isna().sum() / len(production_data)
-                if prod_missing_pct > ref_stats["missing_pct"] + 0.05:  # 5% increase
+                if prod_missing_pct > ref_stats["missing_pct"] + 0.05:
                     col_validation["checks"].append(
                         {
                             "check": "missing_values",
@@ -266,8 +259,7 @@ class FeatureValidator:
                         }
                     )
 
-            else:  # Categorical
-                # Check for new categories
+            else:
                 ref_categories = set(ref_stats.get("value_counts", {}).keys())
                 prod_categories = set(prod_series.unique())
                 new_categories = prod_categories - ref_categories
@@ -306,7 +298,6 @@ class FeatureValidator:
                             }
                         )
 
-                # Check distribution shift (using chi-square test)
                 if len(ref_categories) > 0 and len(prod_categories) > 0:
                     common_cats = ref_categories & prod_categories
                     if len(common_cats) > 1:
@@ -317,7 +308,6 @@ class FeatureValidator:
                             (prod_series == cat).sum() for cat in common_cats
                         ]
 
-                        # Normalize to proportions
                         ref_total = sum(ref_counts)
                         prod_total = sum(prod_counts)
 
@@ -325,14 +315,13 @@ class FeatureValidator:
                             ref_props = [c / ref_total for c in ref_counts]
                             prod_props = [c / prod_total for c in prod_counts]
 
-                            # Chi-square test
                             try:
                                 chi2, p_value = stats.chisquare(
                                     [p * prod_total for p in prod_props],
                                     [p * prod_total for p in ref_props],
                                 )
 
-                                if p_value < 0.05:  # Significant distribution shift
+                                if p_value < 0.05:
                                     col_validation["checks"].append(
                                         {
                                             "check": "distribution_shift",

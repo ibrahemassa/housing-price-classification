@@ -49,3 +49,4 @@ The report includes placeholders like:
 
 Replace these with actual screenshots when you have them.
 
+

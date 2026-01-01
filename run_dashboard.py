@@ -26,3 +26,4 @@ if __name__ == "__main__":
             "--server.address=0.0.0.0",
         ]
     )
+

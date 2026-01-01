@@ -6,21 +6,19 @@ project_root = Path(__file__).parent.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-import joblib  # noqa: E402
-import mlflow  # noqa: E402
-import mlflow.sklearn  # noqa: E402
-import mlflow.xgboost  # noqa: E402
-import numpy as np  # noqa: E402
-
-# from xgboost import XGBClassifier
-from sklearn.ensemble import RandomForestClassifier  # noqa: E402
-from sklearn.linear_model import LogisticRegression  # noqa: E402
-from sklearn.utils.class_weight import (  # noqa: E402
+import joblib
+import mlflow
+import mlflow.sklearn
+import mlflow.xgboost
+import numpy as np
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.utils.class_weight import (
     compute_class_weight,
     compute_sample_weight,
 )
 
-from src.utils.metrics import calculate_comprehensive_metrics  # noqa: E402
+from src.utils.metrics import calculate_comprehensive_metrics
 
 PROCESSED_DIR = "./data/processed"
 MODEL_DIR = "models"
@@ -54,7 +52,7 @@ def get_class_weights(y):
 
 def load_checkpoint(expected_n_features=None):
     """Load checkpoint if it exists and is compatible with current data.
-    
+
     Args:
         expected_n_features: Number of features in current training data.
                            If provided, validates checkpoint compatibility.
@@ -66,15 +64,19 @@ def load_checkpoint(expected_n_features=None):
             if isinstance(checkpoint, dict):
                 model = checkpoint.get("model")
                 n_estimators = checkpoint.get("n_estimators", 0)
-                
-                # Validate feature compatibility
+
                 if model is not None and expected_n_features is not None:
                     model_n_features = getattr(model, "n_features_in_", None)
-                    if model_n_features is not None and model_n_features != expected_n_features:
-                        print(f"⚠️ Checkpoint incompatible: model expects {model_n_features} features, "
-                              f"but data has {expected_n_features} features. Training from scratch.")
+                    if (
+                        model_n_features is not None
+                        and model_n_features != expected_n_features
+                    ):
+                        print(
+                            f"⚠️ Checkpoint incompatible: model expects {model_n_features} features, "
+                            f"but data has {expected_n_features} features. Training from scratch."
+                        )
                         return None, 0
-                
+
                 return model, n_estimators
         except Exception:
             pass
@@ -125,13 +127,14 @@ def train_baseline(X_train, X_test, y_train, y_test):
 def train_main_model(X_train, X_test, y_train, y_test, resume_from_checkpoint=True):
     class_weights = get_class_weights(y_train)
     sample_weights = compute_sample_weight(class_weight="balanced", y=y_train)
-    
-    # Get number of features for checkpoint validation
+
     n_features = X_train.shape[1]
 
     with mlflow.start_run(run_name="main_model_random_forest"):
         model, start_estimators = (
-            load_checkpoint(expected_n_features=n_features) if resume_from_checkpoint else (None, 0)
+            load_checkpoint(expected_n_features=n_features)
+            if resume_from_checkpoint
+            else (None, 0)
         )
 
         if model is None:

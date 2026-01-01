@@ -12,17 +12,17 @@ project_root = Path(__file__).parent.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-import joblib  # noqa: E402
-import mlflow  # noqa: E402
-import numpy as np  # noqa: E402
-import pandas as pd  # noqa: E402
+import joblib
+import mlflow
+import numpy as np
+import pandas as pd
 
-from src.utils.metrics import (  # noqa: E402
+from src.utils.metrics import (
     calculate_class_distribution,
     calculate_comprehensive_metrics,
     calculate_prediction_statistics,
 )
-from src.utils.model_loader import load_model  # noqa: E402
+from src.utils.model_loader import load_model
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -63,7 +63,7 @@ def load_reference_metrics():
         return None
 
     try:
-        from scipy.sparse import hstack  # noqa: E402
+        from scipy.sparse import hstack
 
         preprocessor = joblib.load(PREPROCESSOR_PATH)
         hasher = joblib.load(HASHER_PATH)

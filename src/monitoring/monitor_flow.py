@@ -8,21 +8,19 @@ project_root = Path(__file__).parent.parent.parent
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
-import mlflow  # noqa: E402
-import numpy as np  # noqa: E402
-import pandas as pd  # noqa: E402
-from prefect import flow, task  # noqa: E402
-from prefect.artifacts import create_markdown_artifact  # noqa: E402
+import mlflow
+import numpy as np
+import pandas as pd
+from prefect import flow, task
+from prefect.artifacts import create_markdown_artifact
 
-from src.monitoring.continuous_evaluation import run_continuous_evaluation  # noqa: E402
-from src.monitoring.feature_validation import validate_features  # noqa: E402
-from src.monitoring.plot import (  # noqa: E402
+from src.monitoring.continuous_evaluation import run_continuous_evaluation
+from src.monitoring.feature_validation import validate_features
+from src.monitoring.plot import (
     plot_cardinality_growth,
     plot_categorical_distribution,
     plot_prediction_distribution,
 )
-
-# print(sys.path)
 
 REFERENCE_PATH = Path("data/reference/reference.parquet")
 PROD_INPUTS = Path("data/production/inputs.parquet")

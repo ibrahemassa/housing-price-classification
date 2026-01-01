@@ -15,7 +15,8 @@ lint.select = [
   "UP",        
 ]
 lint.ignore = [
-  "E501",   
+  "E501",
+  "E402",
 ]
 exclude = ["data", "models", "mlruns"]
 
