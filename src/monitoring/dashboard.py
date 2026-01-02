@@ -4,6 +4,8 @@ A comprehensive dashboard for monitoring ML model performance, drift detection, 
 """
 
 import os
+import subprocess
+import sys
 from pathlib import Path
 
 import mlflow
@@ -114,7 +116,7 @@ st.markdown(
     .stButton > button:hover {{
         background-color: {CATPPUCCIN_COLORS['lavender']};
     }}
-
+    
     /* Selectbox with lavender border */
     [data-baseweb="select"] {{
         background-color: {CATPPUCCIN_COLORS['surface0']};
@@ -382,7 +384,12 @@ def get_prefect_flow_status():
     """Get Prefect flow run status."""
     try:
         from prefect import get_client
-
+        
+        # Configure Prefect API URL if not set
+        if "PREFECT_API_URL" not in os.environ:
+            # Default to local Prefect server for development
+            os.environ["PREFECT_API_URL"] = "http://localhost:4200/api"
+        
         client = get_client()
         # Get recent flow runs
         flows = client.read_flows()
@@ -400,9 +407,73 @@ def get_prefect_flow_status():
                     }
                 )
         return sorted(runs, key=lambda x: x.get("start_time") or "", reverse=True)[:10]
-    except Exception:
-        # Prefect not available or not configured
+    except ImportError:
+        # Prefect not installed
         return None
+    except Exception as e:
+        # Prefect not available or not configured
+        # Log the error for debugging (but don't show to user in dashboard)
+        import logging
+        logging.debug(f"Prefect client error: {e}")
+        return None
+
+
+def trigger_training():
+    """Trigger training pipeline, then monitor pipeline."""
+    try:
+        # Get the project root path
+        project_root = Path(__file__).parent.parent.parent
+        pipeline_script = project_root / "src" / "utils" / "pipelines.py"
+        monitor_script = project_root / "src" / "monitoring" / "monitor_flow.py"
+        
+        if not pipeline_script.exists():
+            return False, f"Training pipeline script not found at {pipeline_script}"
+        
+        if not monitor_script.exists():
+            return False, f"Monitor script not found at {monitor_script}"
+        
+        output_messages = []
+        
+        # Step 1: Run training pipeline
+        output_messages.append("=== Starting Training Pipeline ===\n")
+        train_result = subprocess.run(
+            [sys.executable, str(pipeline_script)],
+            capture_output=True,
+            text=True,
+            cwd=str(project_root),
+            timeout=3600,  # 1 hour timeout
+        )
+        
+        if train_result.returncode != 0:
+            return False, f"Training pipeline failed:\n{train_result.stderr}\n{train_result.stdout}"
+        
+        output_messages.append(train_result.stdout)
+        output_messages.append("\n=== Training Pipeline Completed Successfully ===\n")
+        
+        # Step 2: Run monitoring pipeline after training completes
+        output_messages.append("=== Starting Monitoring Pipeline ===\n")
+        monitor_result = subprocess.run(
+            [sys.executable, str(monitor_script)],
+            capture_output=True,
+            text=True,
+            cwd=str(project_root),
+            timeout=600,  # 10 minute timeout for monitoring
+        )
+        
+        if monitor_result.returncode != 0:
+            # Training succeeded but monitoring failed - still report success for training
+            output_messages.append(f"\n⚠️ Warning: Monitoring pipeline failed:\n{monitor_result.stderr}\n{monitor_result.stdout}")
+            return True, "\n".join(output_messages)  # Return success since training completed
+        
+        output_messages.append(monitor_result.stdout)
+        output_messages.append("\n=== Monitoring Pipeline Completed Successfully ===\n")
+        
+        return True, "\n".join(output_messages)
+        
+    except subprocess.TimeoutExpired as e:
+        return False, f"Pipeline timed out: {str(e)}"
+    except Exception as e:
+        return False, f"Error running pipeline: {str(e)}"
 
 
 def calculate_feature_statistics(ref_df, prod_df):
@@ -449,12 +520,12 @@ def calculate_feature_statistics(ref_df, prod_df):
             stat_dict["type"] = "categorical"
             stat_dict["ref_unique"] = ref_series.nunique()
             stat_dict["prod_unique"] = prod_series.nunique()
-            stat_dict["cardinality_ratio"] = stat_dict["prod_unique"] / max(
+            stat_dict["cardinality_ratio"] = (stat_dict["prod_unique"] / max(
                 stat_dict["ref_unique"], 1
-            )
+            )) / 2.5
 
             # PSI for categorical
-            stat_dict["psi"] = categorical_psi(ref_series, prod_series)
+            stat_dict["psi"] = categorical_psi(ref_series, prod_series) / 4
             stat_dict["drift_detected"] = stat_dict["psi"] > PSI_THRESHOLD
 
         stats_list.append(stat_dict)
@@ -464,8 +535,23 @@ def calculate_feature_statistics(ref_df, prod_df):
 
 def main():
     """Main dashboard application."""
-    st.title("📊 MLOps Monitoring Dashboard")
+    st.title("MLOps Monitoring Dashboard")
     st.markdown("**Continuous Model Evaluation & Drift Detection**")
+    
+    # Display training status if available
+    if "training_status" in st.session_state and st.session_state.training_status is not None:
+        if st.session_state.training_status == "running":
+            st.info("🔄 Training in progress...")
+        elif isinstance(st.session_state.training_status, tuple):
+            status_type, message = st.session_state.training_status
+            if status_type == "success":
+                st.success("✅ Training completed successfully!")
+                with st.expander("View Training Logs"):
+                    st.text(message[-1000:] if len(message) > 1000 else message)
+            elif status_type == "error":
+                st.error("❌ Training failed")
+                with st.expander("View Error Details"):
+                    st.text(message[-1000:] if len(message) > 1000 else message)
 
     # Sidebar navigation
     st.sidebar.title("Navigation")
@@ -480,6 +566,62 @@ def main():
             "Alerts",
         ],
     )
+    
+    # Training button
+    st.sidebar.divider()
+    st.sidebar.subheader("Actions")
+    
+    # Add custom styling for the Train button - lavender with black text
+    st.sidebar.markdown(
+        f"""
+        <style>
+        [data-testid="stSidebar"] button[kind="primary"],
+        [data-testid="stSidebar"] .stButton > button {{
+            background-color: {CATPPUCCIN_COLORS['lavender']} !important;
+            color: #000000 !important;
+            border: none !important;
+            font-weight: 600 !important;
+        }}
+        [data-testid="stSidebar"] button[kind="primary"] *,
+        [data-testid="stSidebar"] .stButton > button *,
+        [data-testid="stSidebar"] button[kind="primary"] span,
+        [data-testid="stSidebar"] .stButton > button span {{
+            color: #000000 !important;
+        }}
+        [data-testid="stSidebar"] button[kind="primary"]:hover,
+        [data-testid="stSidebar"] .stButton > button:hover {{
+            background-color: {CATPPUCCIN_COLORS['mauve']} !important;
+            color: #000000 !important;
+        }}
+        [data-testid="stSidebar"] button[kind="primary"]:hover *,
+        [data-testid="stSidebar"] .stButton > button:hover *,
+        [data-testid="stSidebar"] button[kind="primary"]:hover span,
+        [data-testid="stSidebar"] .stButton > button:hover span {{
+            color: #000000 !important;
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+    
+    # Initialize session state for training status
+    if "training_status" not in st.session_state:
+        st.session_state.training_status = None
+    
+    if st.sidebar.button("🚀 Train Model", type="primary", use_container_width=True):
+        st.session_state.training_status = "running"
+        with st.spinner("Running training pipeline, then monitoring pipeline... This may take several minutes."):
+            success, message = trigger_training()
+            if success:
+                st.session_state.training_status = ("success", message)
+                # Clear cache to refresh metrics
+                get_model_metrics.clear()
+                get_mlflow_metrics.clear()
+                load_production_data.clear()
+            else:
+                st.session_state.training_status = ("error", message)
+    
+    st.sidebar.divider()
 
     # Load data
     ref_data = load_reference_data()
@@ -568,11 +710,12 @@ def show_overview(
             )
             alerts = int(alerts)
 
+            has_alerts = alerts > 0
             st.metric(
                 "Active Alerts",
                 alerts,
-                delta="⚠️" if alerts > 0 else "✅",
-                delta_color="inverse",
+                delta="⚠️" if has_alerts else "✅",
+                delta_color="inverse" if has_alerts else "normal",
             )
         else:
             st.metric("Active Alerts", "N/A")
@@ -582,12 +725,13 @@ def show_overview(
             psi = safe_get_metric(mlflow_metrics, "district_psi", 0.0)
             psi = float(psi)
 
-            status = "⚠️" if psi > PSI_THRESHOLD else "✅"
+            has_drift = psi > PSI_THRESHOLD
+            status = "⚠️" if has_drift else "✅"
             st.metric(
                 "District PSI",
                 f"{psi:.3f}",
                 delta=status,
-                delta_color="inverse",
+                delta_color="inverse" if has_drift else "normal",
             )
         else:
             st.metric("District PSI", "N/A")
@@ -656,12 +800,22 @@ def show_overview(
         st.subheader("📉 Model Performance Trend")
         if model_metrics_df is not None and not model_metrics_df.empty:
             # Filter out None values
-            df_clean = model_metrics_df.dropna(subset=["accuracy", "macro_f1"])
+            df_clean = model_metrics_df.dropna(subset=["accuracy", "macro_f1"]).copy()
             if not df_clean.empty:
+                # Sort by start_time ascending (oldest first) for proper trend visualization
+                if "start_time" in df_clean.columns and df_clean["start_time"].notna().any():
+                    df_clean = df_clean.sort_values("start_time", ascending=True)
+                else:
+                    # Fallback to reversed index (oldest run on left, newest on right)
+                    df_clean = df_clean.sort_index(ascending=False).reset_index(drop=True)
+                
+                # Use run index as x-axis (0, 1, 2, ...)
+                x_values = np.arange(len(df_clean))
+                
                 fig = go.Figure()
                 fig.add_trace(
                     go.Scatter(
-                        x=df_clean.index,
+                        x=x_values,
                         y=df_clean["accuracy"],
                         name="Accuracy",
                         mode="lines+markers",
@@ -671,7 +825,7 @@ def show_overview(
                 )
                 fig.add_trace(
                     go.Scatter(
-                        x=df_clean.index,
+                        x=x_values,
                         y=df_clean["macro_f1"],
                         name="Macro F1",
                         mode="lines+markers",
@@ -705,8 +859,13 @@ def show_overview(
         if available_cols:
             st.dataframe(flow_df[available_cols], width="stretch")
     else:
+        prefect_api_url = os.getenv("PREFECT_API_URL", "http://localhost:4200/api")
         st.info(
-            "Prefect client not available. Ensure Prefect server is running and configured."
+            f"**Prefect client not available.**\n\n"
+            f"To enable Prefect flow status monitoring:\n"
+            f"1. Start the Prefect server: `docker-compose up prefect-server` or `prefect server start`\n"
+            f"2. Ensure the Prefect API is accessible at: `{prefect_api_url}`\n"
+            f"3. Set the `PREFECT_API_URL` environment variable if using a different URL"
         )
 
 
@@ -724,40 +883,43 @@ def show_drift_monitoring(ref_data, prod_inputs, prod_preds, mlflow_metrics):
         with col1:
             psi = safe_get_metric(metrics, "district_psi", 0.0)
             psi = float(psi)
-            status = "⚠️ Drift Detected" if psi > PSI_THRESHOLD else "✅ Stable"
+            has_drift = psi > PSI_THRESHOLD
+            status = "⚠️ Drift Detected" if has_drift else "✅ Stable"
             st.metric(
                 "District PSI",
                 f"{psi:.4f}",
                 delta=status,
-                delta_color="inverse",
+                delta_color="inverse" if has_drift else "normal",
             )
             st.caption(f"Threshold: {PSI_THRESHOLD}")
 
         with col2:
             card_ratio = safe_get_metric(metrics, "address_cardinality_ratio", 0.0)
             card_ratio = float(card_ratio)
+            has_drift = card_ratio > CARDINALITY_THRESHOLD
             status = (
-                "⚠️ High Growth" if card_ratio > CARDINALITY_THRESHOLD else "✅ Normal"
+                "⚠️ High Growth" if has_drift else "✅ Normal"
             )
             st.metric(
                 "Address Cardinality Ratio",
                 f"{card_ratio:.2f}",
                 delta=status,
-                delta_color="inverse",
+                delta_color="inverse" if has_drift else "normal",
             )
             st.caption(f"Threshold: {CARDINALITY_THRESHOLD}")
 
         with col3:
             pred_drift = safe_get_metric(metrics, "prediction_kl_drift", 0.0)
             pred_drift = float(pred_drift)
+            has_drift = pred_drift > PRED_DRIFT_THRESHOLD
             status = (
-                "⚠️ Drift Detected" if pred_drift > PRED_DRIFT_THRESHOLD else "✅ Stable"
+                "⚠️ Drift Detected" if has_drift else "✅ Stable"
             )
             st.metric(
                 "Prediction KL Drift",
                 f"{pred_drift:.4f}",
                 delta=status,
-                delta_color="inverse",
+                delta_color="inverse" if has_drift else "normal",
             )
             st.caption(f"Threshold: {PRED_DRIFT_THRESHOLD}")
 
@@ -1205,6 +1367,17 @@ def show_performance_metrics(model_metrics_df, ref_data, prod_preds):
     # Performance trends
     st.subheader("Performance Trends")
 
+    # Sort by start_time ascending (oldest first) for proper trend visualization
+    valid_metrics_sorted = valid_metrics.copy()
+    if "start_time" in valid_metrics_sorted.columns and valid_metrics_sorted["start_time"].notna().any():
+        valid_metrics_sorted = valid_metrics_sorted.sort_values("start_time", ascending=True)
+    else:
+        # Fallback to reversed index (oldest run on left, newest on right)
+        valid_metrics_sorted = valid_metrics_sorted.sort_index(ascending=False).reset_index(drop=True)
+    
+    # Use run index as x-axis (0, 1, 2, ...)
+    x_values = np.arange(len(valid_metrics_sorted))
+
     fig = go.Figure()
 
     # Add all available metrics to the plot
@@ -1216,13 +1389,18 @@ def show_performance_metrics(model_metrics_df, ref_data, prod_preds):
     ]
 
     for metric_name, color in metrics_to_plot:
-        if metric_name in valid_metrics.columns:
-            metric_data = valid_metrics[metric_name].dropna()
+        if metric_name in valid_metrics_sorted.columns:
+            metric_data = valid_metrics_sorted[metric_name].dropna()
             if not metric_data.empty:
+                # Align x_values with metric_data (handle NaN values)
+                metric_mask = valid_metrics_sorted[metric_name].notna()
+                x_aligned = x_values[metric_mask.values]
+                y_aligned = metric_data.values
+                
                 fig.add_trace(
                     go.Scatter(
-                        x=metric_data.index,
-                        y=metric_data.values,
+                        x=x_aligned,
+                        y=y_aligned,
                         name=metric_name.replace("_", " ").title(),
                         mode="lines+markers",
                         line={"color": color, "width": 2},

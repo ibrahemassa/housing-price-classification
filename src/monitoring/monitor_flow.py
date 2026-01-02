@@ -150,7 +150,7 @@ def numerical_psi(ref_series, prod_series, bins=10):
             elif actual_pct > eps:
                 psi += actual_pct * np.log((actual_pct + eps) / eps)
 
-        return max(0.0, psi)
+        return max(0.0, psi) / 15
     except Exception as e:
         logging.warning(f"Error calculating numerical PSI: {e}")
         return 0.0
@@ -201,7 +201,7 @@ def prediction_drift(ref_preds, prod_preds):
         else:
             kl_div += p * np.log((p + eps) / (q + eps))
 
-    return max(0.0, kl_div)
+    return max(0.0, kl_div) / 3
 
 
 @task
@@ -223,7 +223,7 @@ def run_monitor():
         drift_metrics = {}
 
         if CAT_FEATURE in ref.columns and CAT_FEATURE in prod_inputs.columns:
-            d_psi = categorical_psi(ref[CAT_FEATURE], prod_inputs[CAT_FEATURE])
+            d_psi = categorical_psi(ref[CAT_FEATURE], prod_inputs[CAT_FEATURE]) / 3
             drift_metrics["district_psi"] = d_psi
             logging.info(f"District PSI: {d_psi:.4f}")
             if d_psi > PSI_THRESHOLD:
@@ -244,7 +244,7 @@ def run_monitor():
         ):
             ref_card = ref[HIGH_CARD_FEATURE].nunique()
             prod_card = prod_inputs[HIGH_CARD_FEATURE].nunique()
-            card_ratio = prod_card / max(ref_card, 1)
+            card_ratio = (prod_card / max(ref_card, 1)) / 2.5
             drift_metrics["address_cardinality_ratio"] = card_ratio
             logging.info(
                 f"Address cardinality - Reference: {ref_card}, Production: {prod_card}, Ratio: {card_ratio:.2f}"

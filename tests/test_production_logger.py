@@ -110,3 +110,4 @@ class TestProductionLogger:
         assert set(df["prediction"].values) == {0, 1, 2}
 
 
+
