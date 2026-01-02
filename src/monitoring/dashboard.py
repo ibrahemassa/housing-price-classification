@@ -116,7 +116,7 @@ st.markdown(
     .stButton > button:hover {{
         background-color: {CATPPUCCIN_COLORS['lavender']};
     }}
-    
+
     /* Selectbox with lavender border */
     [data-baseweb="select"] {{
         background-color: {CATPPUCCIN_COLORS['surface0']};
@@ -382,70 +382,93 @@ def apply_catppuccin_theme(fig):
 
 def get_prefect_flow_status():
     """Get Prefect flow run status."""
-    import logging
     import asyncio
+    import logging
+
     logger = logging.getLogger(__name__)
-    
+
     async def _get_flow_runs_async():
         """Async helper to get flow runs."""
         from prefect import get_client
-        
+
         # Configure Prefect API URL if not set
         prefect_api_url = os.getenv("PREFECT_API_URL", "http://localhost:4200/api")
         if "PREFECT_API_URL" not in os.environ:
             os.environ["PREFECT_API_URL"] = prefect_api_url
-        
+
         logger.debug(f"Connecting to Prefect API at: {prefect_api_url}")
-        
+
         # Get client - in Prefect 3.x, get_client() returns an async client
         async with get_client() as client:
             # Read recent flow runs (limit to 10 most recent)
             flow_runs = await client.read_flow_runs(limit=10)
-            
+
             if not flow_runs:
                 logger.debug("No flow runs found")
                 return []
-            
+
             runs = []
             for run in flow_runs:
                 try:
                     # Get flow name from the flow_id
                     flow_name = "Unknown"
-                    if hasattr(run, 'flow_id') and run.flow_id:
+                    if hasattr(run, "flow_id") and run.flow_id:
                         try:
                             flow = await client.read_flow(run.flow_id)
-                            flow_name = flow.name if flow and hasattr(flow, 'name') else "Unknown"
+                            flow_name = (
+                                flow.name
+                                if flow and hasattr(flow, "name")
+                                else "Unknown"
+                            )
                         except Exception as flow_read_error:
-                            logger.debug(f"Could not read flow {run.flow_id}: {flow_read_error}")
-                            flow_name = f"Flow-{str(run.flow_id)[:8]}" if run.flow_id else "Unknown"
-                    
+                            logger.debug(
+                                f"Could not read flow {run.flow_id}: {flow_read_error}"
+                            )
+                            flow_name = (
+                                f"Flow-{str(run.flow_id)[:8]}"
+                                if run.flow_id
+                                else "Unknown"
+                            )
+
                     # Extract state
                     state = "UNKNOWN"
-                    if hasattr(run, 'state_type') and run.state_type:
-                        state = run.state_type.value if hasattr(run.state_type, 'value') else str(run.state_type)
-                    elif hasattr(run, 'state') and run.state:
+                    if hasattr(run, "state_type") and run.state_type:
+                        state = (
+                            run.state_type.value
+                            if hasattr(run.state_type, "value")
+                            else str(run.state_type)
+                        )
+                    elif hasattr(run, "state") and run.state:
                         state = str(run.state)
-                    
+
                     runs.append(
                         {
                             "flow_name": flow_name,
-                            "run_id": str(run.id) if hasattr(run, 'id') else "Unknown",
+                            "run_id": str(run.id) if hasattr(run, "id") else "Unknown",
                             "state": state,
-                            "start_time": run.start_time.isoformat() if hasattr(run, 'start_time') and run.start_time else None,
-                            "end_time": run.end_time.isoformat() if hasattr(run, 'end_time') and run.end_time else None,
+                            "start_time": (
+                                run.start_time.isoformat()
+                                if hasattr(run, "start_time") and run.start_time
+                                else None
+                            ),
+                            "end_time": (
+                                run.end_time.isoformat()
+                                if hasattr(run, "end_time") and run.end_time
+                                else None
+                            ),
                         }
                     )
                 except Exception as run_error:
                     # Continue with other runs if one fails
                     logger.debug(f"Error processing run: {run_error}")
                     continue
-            
+
             logger.debug(f"Successfully retrieved {len(runs)} flow runs")
             return runs
-    
+
     try:
         from prefect import get_client
-        
+
         # Run the async function
         # Streamlit runs in a sync context, so asyncio.run() should work
         try:
@@ -455,28 +478,31 @@ def get_prefect_flow_status():
             # Otherwise, fall back to creating a new event loop in a thread
             if "cannot be called from a running event loop" in str(e):
                 import threading
+
                 result_container = [None]
                 exception_container = [None]
-                
+
                 def run_in_thread():
                     try:
                         new_loop = asyncio.new_event_loop()
                         asyncio.set_event_loop(new_loop)
-                        result_container[0] = new_loop.run_until_complete(_get_flow_runs_async())
+                        result_container[0] = new_loop.run_until_complete(
+                            _get_flow_runs_async()
+                        )
                         new_loop.close()
                     except Exception as ex:
                         exception_container[0] = ex
-                
+
                 thread = threading.Thread(target=run_in_thread, daemon=True)
                 thread.start()
                 thread.join(timeout=10)
-                
+
                 if exception_container[0]:
                     raise exception_container[0]
                 return result_container[0]
             else:
                 raise
-            
+
     except ImportError as import_error:
         # Prefect not installed
         logger.debug(f"Prefect not installed: {import_error}")
@@ -494,15 +520,15 @@ def trigger_training():
         project_root = Path(__file__).parent.parent.parent
         pipeline_script = project_root / "src" / "utils" / "pipelines.py"
         monitor_script = project_root / "src" / "monitoring" / "monitor_flow.py"
-        
+
         if not pipeline_script.exists():
             return False, f"Training pipeline script not found at {pipeline_script}"
-        
+
         if not monitor_script.exists():
             return False, f"Monitor script not found at {monitor_script}"
-        
+
         output_messages = []
-        
+
         # Step 1: Run training pipeline
         output_messages.append("=== Starting Training Pipeline ===\n")
         train_result = subprocess.run(
@@ -512,13 +538,16 @@ def trigger_training():
             cwd=str(project_root),
             timeout=3600,  # 1 hour timeout
         )
-        
+
         if train_result.returncode != 0:
-            return False, f"Training pipeline failed:\n{train_result.stderr}\n{train_result.stdout}"
-        
+            return (
+                False,
+                f"Training pipeline failed:\n{train_result.stderr}\n{train_result.stdout}",
+            )
+
         output_messages.append(train_result.stdout)
         output_messages.append("\n=== Training Pipeline Completed Successfully ===\n")
-        
+
         # Step 2: Run monitoring pipeline after training completes
         output_messages.append("=== Starting Monitoring Pipeline ===\n")
         monitor_result = subprocess.run(
@@ -528,17 +557,21 @@ def trigger_training():
             cwd=str(project_root),
             timeout=600,  # 10 minute timeout for monitoring
         )
-        
+
         if monitor_result.returncode != 0:
             # Training succeeded but monitoring failed - still report success for training
-            output_messages.append(f"\n⚠️ Warning: Monitoring pipeline failed:\n{monitor_result.stderr}\n{monitor_result.stdout}")
-            return True, "\n".join(output_messages)  # Return success since training completed
-        
+            output_messages.append(
+                f"\n⚠️ Warning: Monitoring pipeline failed:\n{monitor_result.stderr}\n{monitor_result.stdout}"
+            )
+            return True, "\n".join(
+                output_messages
+            )  # Return success since training completed
+
         output_messages.append(monitor_result.stdout)
         output_messages.append("\n=== Monitoring Pipeline Completed Successfully ===\n")
-        
+
         return True, "\n".join(output_messages)
-        
+
     except subprocess.TimeoutExpired as e:
         return False, f"Pipeline timed out: {str(e)}"
     except Exception as e:
@@ -589,9 +622,9 @@ def calculate_feature_statistics(ref_df, prod_df):
             stat_dict["type"] = "categorical"
             stat_dict["ref_unique"] = ref_series.nunique()
             stat_dict["prod_unique"] = prod_series.nunique()
-            stat_dict["cardinality_ratio"] = (stat_dict["prod_unique"] / max(
-                stat_dict["ref_unique"], 1
-            )) / 2.5
+            stat_dict["cardinality_ratio"] = (
+                stat_dict["prod_unique"] / max(stat_dict["ref_unique"], 1)
+            ) / 2.5
 
             # PSI for categorical
             stat_dict["psi"] = categorical_psi(ref_series, prod_series) / 4
@@ -606,9 +639,12 @@ def main():
     """Main dashboard application."""
     st.title("MLOps Monitoring Dashboard")
     st.markdown("**Continuous Model Evaluation & Drift Detection**")
-    
+
     # Display training status if available
-    if "training_status" in st.session_state and st.session_state.training_status is not None:
+    if (
+        "training_status" in st.session_state
+        and st.session_state.training_status is not None
+    ):
         if st.session_state.training_status == "running":
             st.info("🔄 Training in progress...")
         elif isinstance(st.session_state.training_status, tuple):
@@ -635,11 +671,11 @@ def main():
             "Alerts",
         ],
     )
-    
+
     # Training button
     st.sidebar.divider()
     st.sidebar.subheader("Actions")
-    
+
     # Add custom styling for the Train button - lavender with black text
     st.sidebar.markdown(
         f"""
@@ -672,14 +708,16 @@ def main():
         """,
         unsafe_allow_html=True,
     )
-    
+
     # Initialize session state for training status
     if "training_status" not in st.session_state:
         st.session_state.training_status = None
-    
+
     if st.sidebar.button("🚀 Train Model", type="primary", use_container_width=True):
         st.session_state.training_status = "running"
-        with st.spinner("Running training pipeline, then monitoring pipeline... This may take several minutes."):
+        with st.spinner(
+            "Running training pipeline, then monitoring pipeline... This may take several minutes."
+        ):
             success, message = trigger_training()
             if success:
                 st.session_state.training_status = ("success", message)
@@ -689,7 +727,7 @@ def main():
                 load_production_data.clear()
             else:
                 st.session_state.training_status = ("error", message)
-    
+
     st.sidebar.divider()
 
     # Load data
@@ -872,15 +910,20 @@ def show_overview(
             df_clean = model_metrics_df.dropna(subset=["accuracy", "macro_f1"]).copy()
             if not df_clean.empty:
                 # Sort by start_time ascending (oldest first) for proper trend visualization
-                if "start_time" in df_clean.columns and df_clean["start_time"].notna().any():
+                if (
+                    "start_time" in df_clean.columns
+                    and df_clean["start_time"].notna().any()
+                ):
                     df_clean = df_clean.sort_values("start_time", ascending=True)
                 else:
                     # Fallback to reversed index (oldest run on left, newest on right)
-                    df_clean = df_clean.sort_index(ascending=False).reset_index(drop=True)
-                
+                    df_clean = df_clean.sort_index(ascending=False).reset_index(
+                        drop=True
+                    )
+
                 # Use run index as x-axis (0, 1, 2, ...)
                 x_values = np.arange(len(df_clean))
-                
+
                 fig = go.Figure()
                 fig.add_trace(
                     go.Scatter(
@@ -966,9 +1009,7 @@ def show_drift_monitoring(ref_data, prod_inputs, prod_preds, mlflow_metrics):
             card_ratio = safe_get_metric(metrics, "address_cardinality_ratio", 0.0)
             card_ratio = float(card_ratio)
             has_drift = card_ratio > CARDINALITY_THRESHOLD
-            status = (
-                "⚠️ High Growth" if has_drift else "✅ Normal"
-            )
+            status = "⚠️ High Growth" if has_drift else "✅ Normal"
             st.metric(
                 "Address Cardinality Ratio",
                 f"{card_ratio:.2f}",
@@ -981,9 +1022,7 @@ def show_drift_monitoring(ref_data, prod_inputs, prod_preds, mlflow_metrics):
             pred_drift = safe_get_metric(metrics, "prediction_kl_drift", 0.0)
             pred_drift = float(pred_drift)
             has_drift = pred_drift > PRED_DRIFT_THRESHOLD
-            status = (
-                "⚠️ Drift Detected" if has_drift else "✅ Stable"
-            )
+            status = "⚠️ Drift Detected" if has_drift else "✅ Stable"
             st.metric(
                 "Prediction KL Drift",
                 f"{pred_drift:.4f}",
@@ -1089,7 +1128,10 @@ def show_drift_monitoring(ref_data, prod_inputs, prod_preds, mlflow_metrics):
         barmode="group",
         title="Prediction Distribution Comparison",
         labels={"value": "Proportion", "index": "Price Category"},
-        color_discrete_sequence=[CATPPUCCIN_COLORS["pink"], CATPPUCCIN_COLORS["lavender"]],
+        color_discrete_sequence=[
+            CATPPUCCIN_COLORS["pink"],
+            CATPPUCCIN_COLORS["lavender"],
+        ],
     )
     fig = apply_catppuccin_theme(fig)
     st.plotly_chart(fig, width="stretch")
@@ -1438,12 +1480,19 @@ def show_performance_metrics(model_metrics_df, ref_data, prod_preds):
 
     # Sort by start_time ascending (oldest first) for proper trend visualization
     valid_metrics_sorted = valid_metrics.copy()
-    if "start_time" in valid_metrics_sorted.columns and valid_metrics_sorted["start_time"].notna().any():
-        valid_metrics_sorted = valid_metrics_sorted.sort_values("start_time", ascending=True)
+    if (
+        "start_time" in valid_metrics_sorted.columns
+        and valid_metrics_sorted["start_time"].notna().any()
+    ):
+        valid_metrics_sorted = valid_metrics_sorted.sort_values(
+            "start_time", ascending=True
+        )
     else:
         # Fallback to reversed index (oldest run on left, newest on right)
-        valid_metrics_sorted = valid_metrics_sorted.sort_index(ascending=False).reset_index(drop=True)
-    
+        valid_metrics_sorted = valid_metrics_sorted.sort_index(
+            ascending=False
+        ).reset_index(drop=True)
+
     # Use run index as x-axis (0, 1, 2, ...)
     x_values = np.arange(len(valid_metrics_sorted))
 
@@ -1465,7 +1514,7 @@ def show_performance_metrics(model_metrics_df, ref_data, prod_preds):
                 metric_mask = valid_metrics_sorted[metric_name].notna()
                 x_aligned = x_values[metric_mask.values]
                 y_aligned = metric_data.values
-                
+
                 fig.add_trace(
                     go.Scatter(
                         x=x_aligned,

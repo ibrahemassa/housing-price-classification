@@ -66,6 +66,3 @@ class TestModelLoader:
     #     model = load_model(alias="Production")
     #
     #     assert model is not None
-
-
-
