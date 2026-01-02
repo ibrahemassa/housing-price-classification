@@ -73,3 +73,5 @@ mlflow.db
 
 # Report files
 report_files/
+
+test_prefect_connection.py

@@ -382,39 +382,108 @@ def apply_catppuccin_theme(fig):
 
 def get_prefect_flow_status():
     """Get Prefect flow run status."""
-    try:
+    import logging
+    import asyncio
+    logger = logging.getLogger(__name__)
+    
+    async def _get_flow_runs_async():
+        """Async helper to get flow runs."""
         from prefect import get_client
         
         # Configure Prefect API URL if not set
+        prefect_api_url = os.getenv("PREFECT_API_URL", "http://localhost:4200/api")
         if "PREFECT_API_URL" not in os.environ:
-            # Default to local Prefect server for development
-            os.environ["PREFECT_API_URL"] = "http://localhost:4200/api"
+            os.environ["PREFECT_API_URL"] = prefect_api_url
         
-        client = get_client()
-        # Get recent flow runs
-        flows = client.read_flows()
-        runs = []
-        for flow in flows[:5]:  # Get last 5 flows
-            flow_runs = client.read_flow_runs(flow_filter={"id": {"any_": [flow.id]}})
-            for run in flow_runs[:3]:  # Get last 3 runs per flow
-                runs.append(
-                    {
-                        "flow_name": flow.name,
-                        "run_id": str(run.id),
-                        "state": run.state_type.value if run.state_type else "UNKNOWN",
-                        "start_time": run.start_time,
-                        "end_time": run.end_time,
-                    }
-                )
-        return sorted(runs, key=lambda x: x.get("start_time") or "", reverse=True)[:10]
-    except ImportError:
+        logger.debug(f"Connecting to Prefect API at: {prefect_api_url}")
+        
+        # Get client - in Prefect 3.x, get_client() returns an async client
+        async with get_client() as client:
+            # Read recent flow runs (limit to 10 most recent)
+            flow_runs = await client.read_flow_runs(limit=10)
+            
+            if not flow_runs:
+                logger.debug("No flow runs found")
+                return []
+            
+            runs = []
+            for run in flow_runs:
+                try:
+                    # Get flow name from the flow_id
+                    flow_name = "Unknown"
+                    if hasattr(run, 'flow_id') and run.flow_id:
+                        try:
+                            flow = await client.read_flow(run.flow_id)
+                            flow_name = flow.name if flow and hasattr(flow, 'name') else "Unknown"
+                        except Exception as flow_read_error:
+                            logger.debug(f"Could not read flow {run.flow_id}: {flow_read_error}")
+                            flow_name = f"Flow-{str(run.flow_id)[:8]}" if run.flow_id else "Unknown"
+                    
+                    # Extract state
+                    state = "UNKNOWN"
+                    if hasattr(run, 'state_type') and run.state_type:
+                        state = run.state_type.value if hasattr(run.state_type, 'value') else str(run.state_type)
+                    elif hasattr(run, 'state') and run.state:
+                        state = str(run.state)
+                    
+                    runs.append(
+                        {
+                            "flow_name": flow_name,
+                            "run_id": str(run.id) if hasattr(run, 'id') else "Unknown",
+                            "state": state,
+                            "start_time": run.start_time.isoformat() if hasattr(run, 'start_time') and run.start_time else None,
+                            "end_time": run.end_time.isoformat() if hasattr(run, 'end_time') and run.end_time else None,
+                        }
+                    )
+                except Exception as run_error:
+                    # Continue with other runs if one fails
+                    logger.debug(f"Error processing run: {run_error}")
+                    continue
+            
+            logger.debug(f"Successfully retrieved {len(runs)} flow runs")
+            return runs
+    
+    try:
+        from prefect import get_client
+        
+        # Run the async function
+        # Streamlit runs in a sync context, so asyncio.run() should work
+        try:
+            return asyncio.run(_get_flow_runs_async())
+        except RuntimeError as e:
+            # If there's already a running event loop, use nest_asyncio if available
+            # Otherwise, fall back to creating a new event loop in a thread
+            if "cannot be called from a running event loop" in str(e):
+                import threading
+                result_container = [None]
+                exception_container = [None]
+                
+                def run_in_thread():
+                    try:
+                        new_loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(new_loop)
+                        result_container[0] = new_loop.run_until_complete(_get_flow_runs_async())
+                        new_loop.close()
+                    except Exception as ex:
+                        exception_container[0] = ex
+                
+                thread = threading.Thread(target=run_in_thread, daemon=True)
+                thread.start()
+                thread.join(timeout=10)
+                
+                if exception_container[0]:
+                    raise exception_container[0]
+                return result_container[0]
+            else:
+                raise
+            
+    except ImportError as import_error:
         # Prefect not installed
+        logger.debug(f"Prefect not installed: {import_error}")
         return None
     except Exception as e:
         # Prefect not available or not configured
-        # Log the error for debugging (but don't show to user in dashboard)
-        import logging
-        logging.debug(f"Prefect client error: {e}")
+        logger.debug(f"Prefect client error ({type(e).__name__}): {e}")
         return None
 
 
