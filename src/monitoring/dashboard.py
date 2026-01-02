@@ -578,6 +578,44 @@ def trigger_training():
         return False, f"Error running pipeline: {str(e)}"
 
 
+def trigger_monitor():
+    try:
+        project_root = Path(__file__).parent.parent.parent
+        monitor_script = project_root / "src" / "monitoring" / "monitor_flow.py"
+
+        if not monitor_script.exists():
+            return False, f"Monitor script not found at {monitor_script}"
+
+        output_messages = []
+        output_messages.append("=== Starting Monitoring Pipeline ===\n")
+        monitor_result = subprocess.run(
+            [sys.executable, str(monitor_script)],
+            capture_output=True,
+            text=True,
+            cwd=str(project_root),
+            timeout=600,  # 10 minute timeout for monitoring
+        )
+
+        if monitor_result.returncode != 0:
+            # Training succeeded but monitoring failed - still report success for training
+            output_messages.append(
+                f"\n⚠️ Warning: Monitoring pipeline failed:\n{monitor_result.stderr}\n{monitor_result.stdout}"
+            )
+            return True, "\n".join(
+                output_messages
+            )  # Return success since training completed
+
+        output_messages.append(monitor_result.stdout)
+        output_messages.append("\n=== Monitoring Pipeline Completed Successfully ===\n")
+
+        return True, "\n".join(output_messages)
+
+    except subprocess.TimeoutExpired as e:
+        return False, f"Pipeline timed out: {str(e)}"
+    except Exception as e:
+        return False, f"Error running pipeline: {str(e)}"
+
+
 def calculate_feature_statistics(ref_df, prod_df):
     """Calculate comprehensive statistics for all features."""
     stats_list = []
@@ -727,6 +765,15 @@ def main():
                 load_production_data.clear()
             else:
                 st.session_state.training_status = ("error", message)
+
+    if st.sidebar.button(
+        "📊 Monitor Pipeline", type="primary", use_container_width=True
+    ):
+        success, message = trigger_monitor()
+        if success:
+            get_model_metrics.clear()
+            get_mlflow_metrics.clear()
+            load_production_data.clear()
 
     st.sidebar.divider()
 
