@@ -174,6 +174,3 @@ def sample_production_data():
 def sample_predictions():
     """Sample predictions for monitoring."""
     return pd.DataFrame({"prediction": [0, 1, 2, 0, 1] * 20})
-
-
-
