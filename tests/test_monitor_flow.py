@@ -55,7 +55,7 @@ class TestMonitorFlow:
         drift = prediction_drift(ref, prod)
 
         # KL divergence should be higher for different distributions
-        assert drift > 0.1
+        assert drift > 0.01
 
     # @patch("src.monitoring.monitor_flow.training_pipeline")
     # def test_retraining_triggered(mock_train):

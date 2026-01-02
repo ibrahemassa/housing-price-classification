@@ -29,7 +29,7 @@ class TestPlot:
         assert len(ts) == 15  # YYYYMMDD_HHMMSS (8+1+6)
         assert "_" in ts
         assert ts.count("_") == 1
-        assert ts.startswith("2025") or ts.startswith("2024")  # Year check
+        assert ts.startswith("2025") or ts.startswith("2026")  # Year check
 
     def test_plot_categorical_distribution(
         self, temp_plot_dir, sample_reference_data, sample_production_data, monkeypatch
