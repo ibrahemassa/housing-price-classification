@@ -69,10 +69,3 @@ def complete_project_structure(temp_integration_dir):
         os.makedirs(full_path, exist_ok=True)
 
     return temp_integration_dir
-<<<<<<< HEAD
-=======
-
-
-
-
->>>>>>> hw
