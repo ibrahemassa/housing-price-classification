@@ -89,3 +89,4 @@ jobs:
           status: ${{ job.status }}
           title: '⛔ ${{ github.repository }} Failed to deploy to EC2'
 
+
