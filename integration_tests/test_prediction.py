@@ -16,4 +16,3 @@ def test_model_can_make_prediction():
     assert prediction is not None
     assert prediction.shape == (1,)
     assert prediction[0] in [0, 1, 2]
-

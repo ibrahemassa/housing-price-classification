@@ -108,10 +108,3 @@ class TestProductionLogger:
         df = pd.read_parquet(Path(temp_log_dir) / "predictions.parquet")
         assert len(df) == 3
         assert set(df["prediction"].values) == {0, 1, 2}
-<<<<<<< HEAD
-=======
-
-
-
-
->>>>>>> hw

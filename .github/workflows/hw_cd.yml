@@ -1,4 +1,4 @@
-name: cd
+name: hw_cd
 
 on:
   push:
@@ -25,6 +25,11 @@ jobs:
           target: "mlops-app/"
           overwrite: true
           strip_components: 0
+
+      - name: Integration test
+        env:
+          CI: "true"
+        run: pytest ./integration_tests/test_prediction.py
 
       - name: Deploy on EC2
         uses: appleboy/ssh-action@v1.0.3
@@ -88,4 +93,5 @@ jobs:
         with:
           status: ${{ job.status }}
           title: '⛔ ${{ github.repository }} Failed to deploy to EC2'
+
 

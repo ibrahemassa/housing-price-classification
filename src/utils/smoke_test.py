@@ -1,5 +1,6 @@
 import os
 import sys
+
 import requests
 
 EC2_IP = os.getenv("EC2_IP")
@@ -20,7 +21,7 @@ payload = {
     "BuildingAge": 5,
     "NumberOfRooms": 3,
     "AdCreationDate": "2023-01",
-    "Subscription": "unknown"
+    "Subscription": "unknown",
 }
 
 try:
