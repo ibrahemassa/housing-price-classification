@@ -1,8 +1,2 @@
 # Tests package
-<<<<<<< HEAD
-=======
 
-
-
-
->>>>>>> hw

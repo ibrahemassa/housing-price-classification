@@ -1,4 +1,4 @@
-name: cd
+name: hw_cd
 
 on:
   push:
