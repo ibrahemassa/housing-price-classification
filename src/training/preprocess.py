@@ -178,7 +178,7 @@ def build_preprocessor():
         remainder="drop",
     )
 
-    hasher = FeatureHasher(n_features=2**12, input_type="string")
+    hasher = FeatureHasher(n_features=2**14, input_type="string")
 
     return preprocessor, hasher
 

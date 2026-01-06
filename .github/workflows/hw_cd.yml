@@ -26,6 +26,11 @@ jobs:
           overwrite: true
           strip_components: 0
 
+      - name: Integration test
+        env:
+          CI: "true"
+        run: pytest ./integration_tests/test_prediction.py
+
       - name: Deploy on EC2
         uses: appleboy/ssh-action@v1.0.3
         with:
