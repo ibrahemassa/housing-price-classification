@@ -1,0 +1,59 @@
+name: hw_ci
+
+on:
+  pull_request:
+    branches: [master]
+
+jobs:
+
+  style:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Formatting (Black)
+        run: black --check .
+
+      - name: Linting (Ruff)
+        run: ruff check .
+
+      - name: Type checking (Mypy)
+        run: mypy src
+
+
+
+  tests:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Unit tests
+        env:
+          CI: "true"
+        run: pytest ./tests/test_feature_hashing.py
+
+      - name: Integration tests
+        env:
+          CI: "true"
+        run: pytest ./integration_tests
+
+
+
