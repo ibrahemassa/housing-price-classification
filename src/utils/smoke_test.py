@@ -12,17 +12,19 @@ if not EC2_IP:
 URL = f"http://{EC2_IP}:8081/predict"
 
 payload = {
-    "district": "Kadikoy",
-    "address": "Test Address",
-    "HeatingType": "NaturalGas",
-    "FloorLocation": "3rdFloor",
-    "GrossSquareMeters": 120,
-    "NetSquareMeters": 100,
-    "BuildingAge": 5,
-    "NumberOfRooms": 3,
-    "AdCreationDate": "2023-01",
-    "Subscription": "unknown",
+  "GrossSquareMeters": 200,
+  "NetSquareMeters": 120,
+  "BuildingAge": 3,
+  "NumberOfRooms": 4.0,
+  "district": "besiktas",
+  "HeatingType": "Kombi Doğalgaz",
+  "StructureType": "Betonarme",
+  "FloorLocation": "Çatı Katı",
+  "address": "İstanbul>besiktas>yildiz",
+  "AdCreationDate": "2025-02",
+  "Subscription": "None"
 }
+
 
 try:
     response = requests.post(URL, json=payload, timeout=10)
